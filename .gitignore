@@ -127,4 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# build and run residue
 output.png
+source/image_enhancement.cubin

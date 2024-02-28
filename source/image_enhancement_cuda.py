@@ -11,7 +11,7 @@ def timeit(timemap,fun,*args):
     end = cuda.Event()
     start.record()
     start.synchronize()
-    fun(args)
+    fun(*args)
     end.record()
     end.synchronize()
     events_secs = start.time_till(end)
@@ -214,7 +214,7 @@ if __name__ == "__main__":
     image = numpy.asarray(image.convert("RGB"))
 
     height, width, _ = image.shape
-    iterations = 10
+    iterations = 100
     d_image = cuda.mem_alloc(image.nbytes)
     d_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     for i in range(iterations):
@@ -224,10 +224,14 @@ if __name__ == "__main__":
 
     total = 0
     for fun in timemap:
-        print(timemap[fun]/iterations)
+        fun_time = timemap[fun]/iterations
+        print(f"{fun}: {timemap[fun]/iterations} ms")
         total = total + timemap[fun]/iterations
-    print(total)
+    print(f"total: {total} ms")
     enhanced = numpy.empty_like(image)
+    mask = numpy.zeros((width,height),dtype=numpy.float32)
     cuda.memcpy_dtoh(enhanced, d_image)
+    cuda.memcpy_dtoh(mask,d_ph_mask)
 
     Image.fromarray(numpy.uint8(enhanced)).save(os.path.join(path, "..", "output.png"))
+    Image.fromarray(numpy.uint8(mask)).save(os.path.join(path, "..", "mask.png"))
