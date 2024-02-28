@@ -211,7 +211,7 @@ if __name__ == "__main__":
         color_correction = False
     )
     timemap = defaultdict(int)
-    image = Image.open(os.path.join(path, "..", "images", "alhambra1.jpg"))
+    image = Image.open(os.path.join(path, "..", "images", "test_img.png"))
     image = numpy.asarray(image.convert("RGB"))
     height, width, _ = image.shape
     iterations = 100
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     )
     grayscale = numpy.zeros((height,width),dtype=numpy.float32)
     cuda.memcpy_dtoh(grayscale,de_ph_mask)
-    mask_e = skimage.filters.gaussian(grayscale, sigma=1, output=None, mode='nearest', cval=0, preserve_range=False, truncate=4.0)
+    mask_e = skimage.filters.gaussian(grayscale, sigma=10, output=None, mode='nearest', cval=0, preserve_range=False, truncate=4.0)
     cuda.memcpy_htod(de_ph_mask,mask_e)
     tone_mapping.enhance_image(de_image,de_ph_mask,width,height)
 
