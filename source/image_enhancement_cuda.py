@@ -3,26 +3,19 @@ import numpy
 import pycuda.driver as cuda
 import pycuda.autoinit
 import datetime as dt
+from collections import defaultdict
 
 
-class Time(object):
-    def __init__(self,name: str, iterations: float):
-        self.name = name
-        self.iterations = iterations
-        self.start = cuda.Event()
-        self.end = cuda.Event()
-
-    def __enter__(self):
-        self.start.record()
-        self.start.synchronize()
-
-    def __exit__(self, *args):
-        self.end.record()
-        self.end.synchronize()
-        events_secs = self.start.time_till(self.end)
-
-        print(f"time measured for {self.name} for {self.iterations}")
-        print(events_secs/self.iterations)
+def timeit(timemap,fun,*args):
+    start = cuda.Event()
+    end = cuda.Event()
+    start.record()
+    start.synchronize()
+    fun(args)
+    end.record()
+    end.synchronize()
+    events_secs = start.time_till(end)
+    timemap[fun.__name__] = timemap[fun.__name__] + events_secs
 
 from math import ceil
 from PIL import Image
@@ -216,21 +209,24 @@ if __name__ == "__main__":
         saturation_degree = 1.2,
         color_correction = False
     )
-
+    timemap = defaultdict(int)
     image = Image.open(os.path.join(path, "..", "images", "alhambra1.jpg"))
     image = numpy.asarray(image.convert("RGB"))
 
     height, width, _ = image.shape
-
+    iterations = 10
     d_image = cuda.mem_alloc(image.nbytes)
     d_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
+    for i in range(iterations):
+        cuda.memcpy_htod(d_image, image)
+        timeit(timemap,tone_mapping.photometric_mask,d_image, d_ph_mask, width, height)
+        timeit(timemap,tone_mapping.enhance_image,d_image, d_ph_mask, width, height)
 
-    cuda.memcpy_htod(d_image, image)
-    with Time('hello',10):
-        tone_mapping.photometric_mask(d_image, d_ph_mask, width, height)
-        tone_mapping.enhance_image(d_image, d_ph_mask, width, height)
-
-
+    total = 0
+    for fun in timemap:
+        print(timemap[fun]/iterations)
+        total = total + timemap[fun]/iterations
+    print(total)
     enhanced = numpy.empty_like(image)
     cuda.memcpy_dtoh(enhanced, d_image)
 
