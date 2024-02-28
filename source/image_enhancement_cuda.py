@@ -229,9 +229,9 @@ if __name__ == "__main__":
         total = total + timemap[fun]/iterations
     print(f"total: {total} ms")
     enhanced = numpy.empty_like(image)
-    mask = numpy.zeros((width,height),dtype=numpy.float32)
+    mask = numpy.zeros((height,width),dtype=numpy.float32)
+    I8 = (((mask - mask.min()) / (mask.max() - mask.min())) * 255.9).astype(numpy.uint8)
     cuda.memcpy_dtoh(enhanced, d_image)
     cuda.memcpy_dtoh(mask,d_ph_mask)
-
     Image.fromarray(numpy.uint8(enhanced)).save(os.path.join(path, "..", "output.png"))
-    Image.fromarray(numpy.uint8(mask)).save(os.path.join(path, "..", "mask.png"))
+    Image.fromarray(I8).save(os.path.join(path, "..", "mask.png"))

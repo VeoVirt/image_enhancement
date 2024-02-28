@@ -9,5 +9,5 @@ run:
 	python3 source/image_enhancement_cuda.py
 
 image:
-	scp ubuntu@gpu:/home/ubuntu/image_enhancement/output.png & eog output.png
-	scp ubuntu@gpu:/home/ubuntu/image_enhancement/mask.png & eog mask.png
+	scp ubuntu@gpu:/home/ubuntu/image_enhancement/output.png output.png && eog output.png
+	scp ubuntu@gpu:/home/ubuntu/image_enhancement/mask.png mask.png && eog mask.png
