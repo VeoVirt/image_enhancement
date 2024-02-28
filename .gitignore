@@ -130,5 +130,7 @@ dmypy.json
 
 # build and run residue
 output.png
+output-e.png
 source/image_enhancement.cubin
+mask-e.png
 mask.png

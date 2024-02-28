@@ -11,3 +11,5 @@ run:
 image:
 	scp ubuntu@gpu:/home/ubuntu/image_enhancement/output.png output.png && eog output.png
 	scp ubuntu@gpu:/home/ubuntu/image_enhancement/mask.png mask.png && eog mask.png
+	scp ubuntu@gpu:/home/ubuntu/image_enhancement/output-e.png output-e.png && eog output-e.png
+	scp ubuntu@gpu:/home/ubuntu/image_enhancement/mask-e.png mask-e.png && eog mask-e.png

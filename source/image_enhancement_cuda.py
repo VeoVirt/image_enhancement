@@ -3,6 +3,7 @@ import numpy
 import pycuda.driver as cuda
 import pycuda.autoinit
 import datetime as dt
+import skimage
 from collections import defaultdict
 
 
@@ -212,11 +213,29 @@ if __name__ == "__main__":
     timemap = defaultdict(int)
     image = Image.open(os.path.join(path, "..", "images", "alhambra1.jpg"))
     image = numpy.asarray(image.convert("RGB"))
-
     height, width, _ = image.shape
     iterations = 100
     d_image = cuda.mem_alloc(image.nbytes)
+    de_image = cuda.mem_alloc(image.nbytes)
     d_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
+    de_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
+
+    cuda.memcpy_htod(de_image, image)
+    color_to_gray_kernel(
+        de_image,
+        de_ph_mask,
+        numpy.uint32(width),
+        numpy.uint32(height),
+        grid=(ceil(width / 8), ceil(height / 8), 1),
+        block=(8, 8, 1)
+    )
+    grayscale = numpy.zeros((height,width),dtype=numpy.float32)
+    cuda.memcpy_dtoh(grayscale,de_ph_mask)
+    mask_e = skimage.filters.gaussian(grayscale, sigma=1, output=None, mode='nearest', cval=0, preserve_range=False, truncate=4.0)
+    cuda.memcpy_htod(de_ph_mask,mask_e)
+    tone_mapping.enhance_image(de_image,de_ph_mask,width,height)
+
+
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
         timeit(timemap,tone_mapping.photometric_mask,d_image, d_ph_mask, width, height)
@@ -229,9 +248,15 @@ if __name__ == "__main__":
         total = total + timemap[fun]/iterations
     print(f"total: {total} ms")
     enhanced = numpy.empty_like(image)
+    enhanced_e = numpy.empty_like(image)
     mask = numpy.zeros((height,width),dtype=numpy.float32)
     cuda.memcpy_dtoh(enhanced, d_image)
+    cuda.memcpy_dtoh(enhanced_e,de_image)
     cuda.memcpy_dtoh(mask,d_ph_mask)
     I8 = (((mask - mask.min()) / (mask.max() - mask.min())) * 255.9).astype(numpy.uint8)
+    I8_e = (((mask_e - mask_e.min()) / (mask_e.max() - mask_e.min())) * 255.9).astype(numpy.uint8)
     Image.fromarray(numpy.uint8(enhanced)).save(os.path.join(path, "..", "output.png"))
+    Image.fromarray(numpy.uint8(enhanced_e)).save(os.path.join(path, "..", "output-e.png"))
+
     Image.fromarray(I8).save(os.path.join(path, "..", "mask.png"))
+    Image.fromarray(I8_e).save(os.path.join(path, "..", "mask-e.png"))
