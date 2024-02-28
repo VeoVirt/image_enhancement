@@ -2,6 +2,7 @@ import os
 import numpy
 import pycuda.driver as cuda
 import pycuda.autoinit
+import datetime as dt
 
 from math import ceil
 from PIL import Image
@@ -205,9 +206,27 @@ if __name__ == "__main__":
     d_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
 
     cuda.memcpy_htod(d_image, image)
+    start = cuda.Event()
+    end = cuda.Event()
 
+    start.record()
+    start.synchronize()
+    tic = dt.datetime.now()
+    # RUN-START
     tone_mapping.photometric_mask(d_image, d_ph_mask, width, height)
     tone_mapping.enhance_image(d_image, d_ph_mask, width, height)
+    # RUN-END
+    end.record() # end option 1
+    end.synchronize() 
+    toc = dt.datetime.now() # end option 2
+    events_secs = start.time_till(end)
+    time_secs = toc - tic
+
+    print("time measured using option 1:")
+    print(events_secs)
+    print("time measured using option 2:")
+    print(time_secs)
+
 
     enhanced = numpy.empty_like(image)
     cuda.memcpy_dtoh(enhanced, d_image)
