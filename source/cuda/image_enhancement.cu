@@ -30,9 +30,9 @@ __global__ void color_to_gray(uint8_t* color, float* gray, uint32_t width, uint3
     uint32_t x = blockIdx.x * blockDim.x + threadIdx.x;
     uint32_t y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (width <= x || height <= y){
-        return;
-    }
+    //if (width <= x || height <= y){
+    //    return;
+    //}
 
     float rgb[3];
     rgb[0] = ((float) color[y * width * 3 + x * 3 + 0]) / 255.0f;

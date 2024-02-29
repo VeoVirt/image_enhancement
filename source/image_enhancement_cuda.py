@@ -309,7 +309,6 @@ if __name__ == "__main__":
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
         timeit(timemap,tone_mapping.photometric_mask_and_enhance,d_image, d_ph_mask, width, height)
-        #timeit(timemap,tone_mapping.enhance_image,d_image, d_ph_mask, width, height)
 
     total = 0
     for fun in timemap:
