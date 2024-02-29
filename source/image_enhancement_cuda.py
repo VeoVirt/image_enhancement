@@ -4,6 +4,7 @@ import pycuda.driver as cuda
 import pycuda.autoinit
 import datetime as dt
 import skimage
+import math
 from collections import defaultdict
 
 
@@ -49,6 +50,13 @@ def matlab_style_gauss2D(shape=(57,57),sigma=7):
     if sumh != 0:
         h /= sumh
     return h
+
+def gaussianKernel(size, sigma, twoDimensional=True):
+    if twoDimensional:
+        kernel = numpy.fromfunction(lambda x, y: (1/(2*math.pi*sigma**2)) * math.e ** ((-1*((x-(size-1)/2)**2+(y-(size-1)/2)**2))/(2*sigma**2)), (size, size))
+    else:
+        kernel = numpy.fromfunction(lambda x: math.e ** ((-1*(x-(size-1)/2)**2) / (2*sigma**2)), (size,))
+    return kernel / numpy.sum(kernel)
 
 class ToneMapping:
     def __init__(
@@ -288,7 +296,7 @@ if __name__ == "__main__":
         block=(8, 8, 1)
     )
 
-    kernel = numpy.array(matlab_style_gauss2D()[:,27].tolist(),dtype=numpy.float32)
+    kernel = gaussianKernel(57,7,twoDimensional=False)
     kernel_d = cuda.mem_alloc(kernel.nbytes)
     cuda.memcpy_htod(kernel_d, kernel)
     x_out = cuda.mem_alloc(width * height * numpy.float32().nbytes)
