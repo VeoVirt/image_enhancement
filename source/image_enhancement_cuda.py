@@ -144,7 +144,7 @@ class ToneMapping:
             else:
                 lut[i] = (alpha * i) / (alpha - i_comp) * (1 / (2 * thr))
 
-    def gaussian_blur_and_enhance(self,gray,mask,buf,inp,width,height,kernel):
+    def gaussian_blur_and_enhance(self,gray,buf,inp,width,height,kernel):
         kernel_radius = 14
         row_blockdim_x = 8
         row_blockdim_y = 4
@@ -294,7 +294,6 @@ if __name__ == "__main__":
     d_image = cuda.mem_alloc(image.nbytes)
     de_image = cuda.mem_alloc(image.nbytes)
     d_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
-    de_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     kernel = gaussianKernel(29,7,twoDimensional=False).astype(numpy.float32).reshape(29)
     kernel_d = cuda.mem_alloc(kernel.nbytes)
     cuda.memcpy_htod(kernel_d, kernel)
@@ -303,7 +302,7 @@ if __name__ == "__main__":
 
     for i in range(iterations):
         cuda.memcpy_htod(de_image, image)
-        timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,de_mask,x_buf,de_image,width,height,kernel_d)
+        timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,de_image,width,height,kernel_d)
 
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
