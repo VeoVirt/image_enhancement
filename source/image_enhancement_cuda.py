@@ -168,8 +168,8 @@ class ToneMapping:
             gray,
             numpy.uint32(width),
             numpy.uint32(height),
-            grid=(ceil(width / (8*row_result_steps)), ceil(height / 8), 1),
-            block=(8*row_result_steps, 8, 1)
+            grid=(ceil(width / 8), ceil(height / 8), 1),
+            block=(8, 8, 1)
         )
 
         convolution_rows_kernel(
@@ -204,8 +204,8 @@ class ToneMapping:
             d_ph_mask,
             numpy.uint32(width),
             numpy.uint32(height),
-            grid=(ceil(width / (8*4)), ceil(height / tile), 1),
-            block=(tile*4, tile, 1)
+            grid=(ceil(width / tile), ceil(height / tile), 1),
+            block=(tile, tile, 1)
         )
 
         photometric_mask_ud_kernel(
