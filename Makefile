@@ -25,3 +25,4 @@ image:
 	scp ubuntu@gpu:/home/ubuntu/image_enhancement/mask.png mask.png
 	scp ubuntu@gpu:/home/ubuntu/image_enhancement/output-e.png output-e.png
 	scp ubuntu@gpu:/home/ubuntu/image_enhancement/mask-e.png mask-e.png
+	scp ubuntu@gpu:/home/ubuntu/image_enhancement/mask-g.png mask-g.png

@@ -284,7 +284,7 @@ if __name__ == "__main__":
     cuda.memcpy_htod(kernel_d, kernel)
     x_out = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     x_buf = cuda.mem_alloc(width * height * numpy.float32().nbytes)
-    tone_mapping.gaussian_blur(out=x_out,buf=x_buf,inp=de_ph_mask,width=width,height=height,kernel=kernel_d)
+    timeit(timemap,tone_mapping.gaussian_blur,x_out,x_buf,de_ph_mask,width,height,kernel_d)
 
 
     grayscale = numpy.zeros((height,width),dtype=numpy.float32)
