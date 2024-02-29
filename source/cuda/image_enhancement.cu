@@ -33,11 +33,15 @@ __global__ void color_to_gray(uint8_t* color, float* gray, uint32_t width, uint3
     //if (width <= x || height <= y){
     //    return;
     //}
-    float r = ((float) color[y * width * 3 + x * 3 + 0]) / 255.0f;
-    float g = ((float) color[y * width * 3 + x * 3 + 1]) / 255.0f;
-    float b = ((float) color[y * width * 3 + x * 3 + 2]) / 255.0f;
+    for (int i = 0; i < ROWS_RESULT_STEPS; i++)
+    {
+        int offset = i*ROWS_BLOCKDIM_X;
+        float r = ((float) color[y * width * 3 + x * 3 + 0 + offset]) / 255.0f;
+        float g = ((float) color[y * width * 3 + x * 3 + 1 + offset]) / 255.0f;
+        float b = ((float) color[y * width * 3 + x * 3 + 2 + offset]) / 255.0f;
 
-    gray[y * width + x] = to_gray(r,g,b);
+        gray[y * width + x + offset] = to_gray(r,g,b);
+    }
 }
 
 extern "C"
