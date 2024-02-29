@@ -296,7 +296,7 @@ if __name__ == "__main__":
         block=(8, 8, 1)
     )
 
-    kernel = gaussianKernel(57,7,twoDimensional=False).astype(numpy.float32).reshape(57)
+    kernel = gaussianKernel(29,7,twoDimensional=False).astype(numpy.float32).reshape(29)
     kernel_d = cuda.mem_alloc(kernel.nbytes)
     cuda.memcpy_htod(kernel_d, kernel)
     x_out = cuda.mem_alloc(width * height * numpy.float32().nbytes)
