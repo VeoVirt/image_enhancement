@@ -372,7 +372,7 @@ __global__ void enhance_image(
     }
 
     float rgb[3];
-    uint32_t idx = y * width * 3 + x * 3
+    uint32_t idx = y * width * 3 + x * 3;
     rgb[0] = ((float) image[idx + 0]) / 255.0f;
     rgb[1] = ((float) image[idx + 1]) / 255.0f;
     rgb[2] = ((float) image[idx + 2]) / 255.0f;
