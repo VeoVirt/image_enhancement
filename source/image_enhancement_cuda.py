@@ -164,8 +164,8 @@ class ToneMapping:
         assert(height % (column_result_steps * column_blockdim_y) == 0);
 
         color_to_gray_kernel(
-            gray,
             inp,
+            gray,
             numpy.uint32(width),
             numpy.uint32(height),
             grid=(ceil(width / 8), ceil(height / 8), 1),
