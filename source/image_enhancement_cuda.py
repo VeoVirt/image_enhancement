@@ -196,7 +196,7 @@ class ToneMapping:
 
         self.enhance_image(inp,gray,width,height)
 
-    def photometric_mask(self, d_image, d_ph_mask, width, height):
+    def photometric_mask_and_enhance(self, d_image, d_ph_mask, width, height):
         tile = 8
 
         color_to_gray_kernel(
@@ -253,6 +253,8 @@ class ToneMapping:
             block=(tile, 1, 1)
         )
 
+        self.enhance_image(d_image,d_ph_mask,width,height)
+
 
     def enhance_image(self, d_image, d_ph_mask, width, height):
         tile = 16
@@ -306,8 +308,8 @@ if __name__ == "__main__":
 
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
-        timeit(timemap,tone_mapping.photometric_mask,d_image, d_ph_mask, width, height)
-        timeit(timemap,tone_mapping.enhance_image,d_image, d_ph_mask, width, height)
+        timeit(timemap,tone_mapping.photometric_mask_and_enhance,d_image, d_ph_mask, width, height)
+        #timeit(timemap,tone_mapping.enhance_image,d_image, d_ph_mask, width, height)
 
     total = 0
     for fun in timemap:
