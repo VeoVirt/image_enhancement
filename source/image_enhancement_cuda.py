@@ -144,8 +144,7 @@ class ToneMapping:
             else:
                 lut[i] = (alpha * i) / (alpha - i_comp) * (1 / (2 * thr))
 
-    def gaussian_blur_and_enhance(self,mask,buf,inp,width,height,kernel):
-        #setConvolutionKernel(h_Kernel); # cudaMemcpyToSymbol(c_Kernel, h_Kernel, KERNEL_LENGTH * sizeof(float));
+    def gaussian_blur_and_enhance(self,gray,mask,buf,inp,width,height,kernel):
         kernel_radius = 14
         row_blockdim_x = 8
         row_blockdim_y = 4
@@ -165,7 +164,7 @@ class ToneMapping:
         assert(height % (column_result_steps * column_blockdim_y) == 0);
 
         color_to_gray_kernel(
-            mask,
+            gray,
             inp,
             numpy.uint32(width),
             numpy.uint32(height),
@@ -175,7 +174,7 @@ class ToneMapping:
 
         convolution_rows_kernel(
             buf,
-            mask,
+            gray,
             numpy.uint32(width),
             numpy.uint32(height),
             numpy.uint32(width),
@@ -300,9 +299,10 @@ if __name__ == "__main__":
     kernel_d = cuda.mem_alloc(kernel.nbytes)
     cuda.memcpy_htod(kernel_d, kernel)
     x_buf = cuda.mem_alloc(width * height * numpy.float32().nbytes)
+    gray = cuda.mem_alloc(width * height * numpy.float32().nbytes)
 
     for i in range(iterations):
-        timeit(timemap,tone_mapping.gaussian_blur_and_enhance,de_mask,x_buf,de_image,width,height,kernel_d)
+        timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,de_mask,x_buf,de_image,width,height,kernel_d)
 
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
