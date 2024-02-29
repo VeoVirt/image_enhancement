@@ -184,7 +184,7 @@ class ToneMapping:
         )
 
         convolution_columns_kernel(
-            mask,
+            gray,
             buf,
             numpy.uint32(width),
             numpy.uint32(height),
@@ -194,7 +194,7 @@ class ToneMapping:
             block=(column_blockdim_x,column_blockdim_y, 1)
         )
 
-        self.enhance_image(inp,mask,width,height)
+        self.enhance_image(inp,gray,width,height)
 
     def photometric_mask(self, d_image, d_ph_mask, width, height):
         tile = 8
