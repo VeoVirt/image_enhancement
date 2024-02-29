@@ -36,6 +36,19 @@ convolution_columns_kernel = mod.get_function("convolutionColumnsKernel")
 LUT_RES = 256
 EPSILON = 1 / 256
 
+def matlab_style_gauss2D(shape=(57,57),sigma=7):
+    """
+    2D gaussian mask - should give the same result as MATLAB's
+    fspecial('gaussian',[shape],[sigma])
+    """
+    m,n = [(ss-1.)/2. for ss in shape]
+    y,x = numpy.ogrid[-m:m+1,-n:n+1]
+    h = numpy.exp( -(x*x + y*y) / (2.*sigma*sigma) )
+    h[ h < numpy.finfo(h.dtype).eps*h.max() ] = 0
+    sumh = h.sum()
+    if sumh != 0:
+        h /= sumh
+    return h
 
 class ToneMapping:
     def __init__(
@@ -275,11 +288,7 @@ if __name__ == "__main__":
         block=(8, 8, 1)
     )
 
-    kernel = numpy.array([0.00047514, 0.00062586, 0.00080773, 0.00102139, 0.00126548, 0.00153623,
-                          0.00182723, 0.00212944, 0.00243151, 0.00272034, 0.002982  , 0.0032028,
-                          0.00337044, 0.00347522, 0.00351086, 0.00347522, 0.00337044, 0.0032028,
-                          0.002982,   0.00272034, 0.00243151, 0.00212944, 0.00182723, 0.00153623,
-                          0.00126548, 0.00102139, 0.00080773, 0.00062586, 0.00047514],dtype=numpy.float32)
+    kernel = matlab_style_gauss2D()[:,27]
     kernel_d = cuda.mem_alloc(kernel.nbytes)
     cuda.memcpy_htod(kernel_d, kernel)
     x_out = cuda.mem_alloc(width * height * numpy.float32().nbytes)
