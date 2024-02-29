@@ -42,6 +42,7 @@ __global__ void color_to_gray(uint8_t* color, float* gray, uint32_t width, uint3
     gray[y * width + x] = to_gray(rgb);
 }
 
+extern "C"
 __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
                                       int imageH, int pitch, float* c_Kernel) {
   // Handle to thread block group
@@ -123,6 +124,7 @@ __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
 // Column convolution filter
 ////////////////////////////////////////////////////////////////////////////////
 
+extern "C"
 __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
                                          int imageH, int pitch, float* c_Kernel) {
   // Handle to thread block group
