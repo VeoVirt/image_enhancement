@@ -169,7 +169,7 @@ class ToneMapping:
             numpy.uint32(width),
             numpy.uint32(height),
             grid=(ceil(width / (8*row_result_steps)), ceil(height / 8), 1),
-            block=(8, 8, 1)
+            block=(8*row_result_steps, 8, 1)
         )
 
         convolution_rows_kernel(
