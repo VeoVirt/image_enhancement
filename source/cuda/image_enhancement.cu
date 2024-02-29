@@ -59,6 +59,7 @@ __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
       threadIdx.x;
   const int baseY = blockIdx.y * ROWS_BLOCKDIM_Y + threadIdx.y;
 
+  const float * d_Org = d_Src;
   d_Src += baseY * pitch + baseX;
   d_Dst += baseY * pitch + baseX;
 
@@ -75,7 +76,7 @@ __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
 
   for (int i = 0; i < ROWS_HALO_STEPS; i++) {
     s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] =
-        (baseX >= -i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : d_Src[baseY*pitch];
+        (baseX >= -i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : d_Org[baseY*pitch];
   }
 
 // Load right halo
@@ -84,7 +85,7 @@ __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
   for (int i = ROWS_HALO_STEPS + ROWS_RESULT_STEPS;
        i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS + ROWS_HALO_STEPS; i++) {
     s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] =
-        (imageW - baseX > i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : d_Src[(baseY+1)*(pitch)-1];
+        (imageW - baseX > i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : d_Org[(baseY+1)*(pitch)-1];
   }
 
   // Compute and store results
