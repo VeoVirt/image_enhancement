@@ -324,7 +324,7 @@ __device__ void graytone_to_color(float rgb[3], float gray){
 
     float graytone_linear = srgb_to_linear(gray);
 
-    float gray_linear = to_gray(rgb);
+    float gray_linear = to_gray(rgb[0],rgb[1],rgb[2]);
     if (gray_linear <= 0.0f){
         gray_linear = EPSILON;
     }
@@ -376,7 +376,7 @@ __global__ void enhance_image(
     float mask = ph_mask[y * width + x];
 
     float gray;
-    gray = to_gray(rgb);
+    gray = to_gray(rgb[0],rgb[1],rgb[2]);
     gray = local_contrast_enhancement(gray, mask, threshold_dark_tones, local_boost, detail_amp_global);
     gray = spatial_tonemapping(
         gray, mask, mid_tone_mapped, tonal_width_mapped, areas_dark_mapped,
