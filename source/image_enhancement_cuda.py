@@ -30,6 +30,8 @@ photometric_mask_du_kernel = mod.get_function("photometric_mask_du")
 photometric_mask_lr_kernel = mod.get_function("photometric_mask_lr")
 photometric_mask_rl_kernel = mod.get_function("photometric_mask_rl")
 enhance_image_kernel = mod.get_function("enhance_image")
+convolution_rows_kernel = mod.get_function("convolutionRowsKernel")
+convolution_columns_kernel = mod.get_function("convolutionColumnsKernel")
 
 LUT_RES = 256
 EPSILON = 1 / 256
@@ -120,6 +122,49 @@ class ToneMapping:
             # lower part of the piece-wise sigmoid function
             else:
                 lut[i] = (alpha * i) / (alpha - i_comp) * (1 / (2 * thr))
+
+    def gaussian_blur(self,out,buf,inp,width,height,kernel):
+        #setConvolutionKernel(h_Kernel); # cudaMemcpyToSymbol(c_Kernel, h_Kernel, KERNEL_LENGTH * sizeof(float));
+        kernel_radius = 14
+        row_blockdim_x = 8
+        row_blockdim_y = 4
+        row_result_steps = 4
+        row_halo_steps = 2
+
+        assert(row_blockdim_x * row_halo_steps >= kernel_radius);
+        assert(width % (row_result_steps * row_blockdim_x) == 0);
+        assert(height % row_blockdim_y == 0);
+
+        column_blockdim_x = 4
+        column_blockdim_y = 8
+        column_result_steps = 2
+        column_halo_steps = 2
+        assert(column_blockdim_y * column_halo_steps >= kernel_radius);
+        assert(width % column_blockdim_x == 0);
+        assert(height % (column_result_steps * column_blockdim_y) == 0);
+
+
+        convolution_rows_kernel(
+            buf,
+            inp,
+            numpy.uint32(width),
+            numpy.uint32(height),
+            numpy.uint32(width),
+            kernel,
+            grid=(ceil(width / (row_result_steps*row_blockdim_x)), ceil(height/row_blockdim_y), 1),
+            block=(row_blockdim_x, row_blockdim_y, 1)
+        )
+
+        convolution_columns_kernel(
+            out,
+            buf,
+            numpy.uint32(width),
+            numpy.uint32(height),
+            numpy.uint32(width),
+            kernel,
+            grid=(ceil(width/ (column_blockdim_x)), ceil(height/(column_result_steps*column_blockdim_y)), 1),
+            block=(column_blockdim_x,column_blockdim_y, 1)
+        )
 
     def photometric_mask(self, d_image, d_ph_mask, width, height):
         tile = 8
@@ -229,12 +274,25 @@ if __name__ == "__main__":
         grid=(ceil(width / 8), ceil(height / 8), 1),
         block=(8, 8, 1)
     )
+
+    kernel = numpy.array([0.00047514, 0.00062586, 0.00080773, 0.00102139, 0.00126548, 0.00153623,
+                          0.00182723, 0.00212944, 0.00243151, 0.00272034, 0.002982  , 0.0032028,
+                          0.00337044, 0.00347522, 0.00351086, 0.00347522, 0.00337044, 0.0032028,
+                          0.002982,   0.00272034, 0.00243151, 0.00212944, 0.00182723, 0.00153623,
+                          0.00126548, 0.00102139, 0.00080773, 0.00062586, 0.00047514],dtype=numpy.float32)
+    kernel_d = cuda.mem_alloc(kernel.nbytes)
+    cuda.memcpy_htod(kernel_d, kernel)
+    x_out = cuda.mem_alloc(width * height * numpy.float32().nbytes)
+    x_buf = cuda.mem_alloc(width * height * numpy.float32().nbytes)
+    tone_mapping.gaussian_blur(out=x_out,buf=x_buf,inp=de_ph_mask,width=width,height=height,kernel=kernel_d)
+
+
     grayscale = numpy.zeros((height,width),dtype=numpy.float32)
     cuda.memcpy_dtoh(grayscale,de_ph_mask)
-    mask_e = skimage.filters.gaussian(grayscale, sigma=10, output=None, mode='nearest', cval=0, preserve_range=False, truncate=4.0)
+    mask_e = skimage.filters.gaussian(grayscale, sigma=7, output=None, mode='nearest', cval=0, preserve_range=False, truncate=4.0)
+
     cuda.memcpy_htod(de_ph_mask,mask_e)
     tone_mapping.enhance_image(de_image,de_ph_mask,width,height)
-
 
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
@@ -250,13 +308,17 @@ if __name__ == "__main__":
     enhanced = numpy.empty_like(image)
     enhanced_e = numpy.empty_like(image)
     mask = numpy.zeros((height,width),dtype=numpy.float32)
+    gauss_mask = numpy.zeros((height,width),dtype=numpy.float32)
     cuda.memcpy_dtoh(enhanced, d_image)
     cuda.memcpy_dtoh(enhanced_e,de_image)
     cuda.memcpy_dtoh(mask,d_ph_mask)
+    cuda.memcpy_dtoh(gauss_mask,x_out)
     I8 = (((mask - mask.min()) / (mask.max() - mask.min())) * 255.9).astype(numpy.uint8)
     I8_e = (((mask_e - mask_e.min()) / (mask_e.max() - mask_e.min())) * 255.9).astype(numpy.uint8)
+    I8_g = (((gauss_mask - gauss_mask.min()) / (gauss_mask.max() - gauss_mask.min())) * 255.9).astype(numpy.uint8)
     Image.fromarray(numpy.uint8(enhanced)).save(os.path.join(path, "..", "output.png"))
     Image.fromarray(numpy.uint8(enhanced_e)).save(os.path.join(path, "..", "output-e.png"))
 
     Image.fromarray(I8).save(os.path.join(path, "..", "mask.png"))
     Image.fromarray(I8_e).save(os.path.join(path, "..", "mask-e.png"))
+    Image.fromarray(I8_e).save(os.path.join(path, "..", "mask-g.png"))

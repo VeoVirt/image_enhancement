@@ -1,9 +1,25 @@
 #include <cuda_runtime.h>
 #include "image_enhancement.cu.h"
+#include <assert.h>
+#include <helper_cuda.h>
+#include <cooperative_groups.h>
+
+namespace cg = cooperative_groups;
 
 #define LUT_RES 256
 #define EPSILON 1.0f / 256.0f
 
+#define ROWS_BLOCKDIM_X 8
+#define ROWS_BLOCKDIM_Y 4
+#define ROWS_RESULT_STEPS 4
+#define ROWS_HALO_STEPS 2
+
+#define COLUMNS_BLOCKDIM_X 4
+#define COLUMNS_BLOCKDIM_Y 8
+#define COLUMNS_RESULT_STEPS 2
+#define COLUMNS_HALO_STEPS 2
+
+//__constant__ float c_Kernel[KERNEL_LENGTH]
 
 __device__ float to_gray(float rgb[3]){
     return rgb[0] * 0.2125f + rgb[1] * 0.7154f + rgb[2] * 0.0721f;
@@ -25,6 +41,168 @@ __global__ void color_to_gray(uint8_t* color, float* gray, uint32_t width, uint3
 
     gray[y * width + x] = to_gray(rgb);
 }
+
+__global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
+                                      int imageH, int pitch, float* c_Kernel) {
+  // Handle to thread block group
+  cg::thread_block cta = cg::this_thread_block();
+  __shared__ float
+      s_Data[ROWS_BLOCKDIM_Y][(ROWS_RESULT_STEPS + 2 * ROWS_HALO_STEPS) *
+                              ROWS_BLOCKDIM_X];
+
+  //__shared__ float c_Kernel[KERNEL_LENGTH];
+
+  // Offset to the left halo edge
+  const int baseX =
+      (blockIdx.x * ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X +
+      threadIdx.x;
+  const int baseY = blockIdx.y * ROWS_BLOCKDIM_Y + threadIdx.y;
+
+  d_Src += baseY * pitch + baseX;
+  d_Dst += baseY * pitch + baseX;
+
+// Load main data
+#pragma unroll
+
+  for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++) {
+    s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] =
+        d_Src[i * ROWS_BLOCKDIM_X];
+  }
+
+// Load left halo
+#pragma unroll
+
+  for (int i = 0; i < ROWS_HALO_STEPS; i++) {
+    s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] =
+        (baseX >= -i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
+  }
+
+// Load right halo
+#pragma unroll
+
+  for (int i = ROWS_HALO_STEPS + ROWS_RESULT_STEPS;
+       i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS + ROWS_HALO_STEPS; i++) {
+    s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] =
+        (imageW - baseX > i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
+  }
+
+  // Compute and store results
+  cg::sync(cta);
+#pragma unroll
+
+  for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++) {
+    float sum = 0;
+
+#pragma unroll
+
+    for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
+      sum += c_Kernel[KERNEL_RADIUS - j] *
+             s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j];
+    }
+
+    d_Dst[i * ROWS_BLOCKDIM_X] = sum;
+  }
+}
+
+//extern "C" void convolutionRowsGPU(float *d_Dst, float *d_Src, int imageW,
+//                                   int imageH) {
+//  assert(ROWS_BLOCKDIM_X * ROWS_HALO_STEPS >= KERNEL_RADIUS);
+//  assert(imageW % (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X) == 0);
+//  assert(imageH % ROWS_BLOCKDIM_Y == 0);
+//
+//  dim3 blocks(imageW / (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X),
+//              imageH / ROWS_BLOCKDIM_Y);
+//  dim3 threads(ROWS_BLOCKDIM_X, ROWS_BLOCKDIM_Y);
+//
+//  convolutionRowsKernel<<<blocks, threads>>>(d_Dst, d_Src, imageW, imageH,
+//                                             imageW);
+//  getLastCudaError("convolutionRowsKernel() execution failed\n");
+//}
+
+////////////////////////////////////////////////////////////////////////////////
+// Column convolution filter
+////////////////////////////////////////////////////////////////////////////////
+
+__global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
+                                         int imageH, int pitch, float* c_Kernel) {
+  // Handle to thread block group
+  cg::thread_block cta = cg::this_thread_block();
+  __shared__ float s_Data[COLUMNS_BLOCKDIM_X][(COLUMNS_RESULT_STEPS +
+                                               2 * COLUMNS_HALO_STEPS) *
+                                                  COLUMNS_BLOCKDIM_Y +
+                                              1];
+
+  // Offset to the upper halo edge
+  const int baseX = blockIdx.x * COLUMNS_BLOCKDIM_X + threadIdx.x;
+  const int baseY = (blockIdx.y * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) *
+                        COLUMNS_BLOCKDIM_Y +
+                    threadIdx.y;
+  d_Src += baseY * pitch + baseX;
+  d_Dst += baseY * pitch + baseX;
+
+// Main data
+#pragma unroll
+
+  for (int i = COLUMNS_HALO_STEPS;
+       i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++) {
+    s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] =
+        d_Src[i * COLUMNS_BLOCKDIM_Y * pitch];
+  }
+
+// Upper halo
+#pragma unroll
+
+  for (int i = 0; i < COLUMNS_HALO_STEPS; i++) {
+    s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] =
+        (baseY >= -i * COLUMNS_BLOCKDIM_Y)
+            ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch]
+            : 0;
+  }
+
+// Lower halo
+#pragma unroll
+
+  for (int i = COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS;
+       i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS + COLUMNS_HALO_STEPS;
+       i++) {
+    s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] =
+        (imageH - baseY > i * COLUMNS_BLOCKDIM_Y)
+            ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch]
+            : 0;
+  }
+
+  // Compute and store results
+  cg::sync(cta);
+#pragma unroll
+
+  for (int i = COLUMNS_HALO_STEPS;
+       i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++) {
+    float sum = 0;
+#pragma unroll
+
+    for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
+      sum += c_Kernel[KERNEL_RADIUS - j] *
+             s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y + j];
+    }
+
+    d_Dst[i * COLUMNS_BLOCKDIM_Y * pitch] = sum;
+  }
+}
+
+//extern "C" void convolutionColumnsGPU(float *d_Dst, float *d_Src, int imageW,
+//                                      int imageH) {
+//  assert(COLUMNS_BLOCKDIM_Y * COLUMNS_HALO_STEPS >= KERNEL_RADIUS);
+//  assert(imageW % COLUMNS_BLOCKDIM_X == 0);
+//  assert(imageH % (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y) == 0);
+//
+//  dim3 blocks(imageW / COLUMNS_BLOCKDIM_X,
+//              imageH / (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y));
+//  dim3 threads(COLUMNS_BLOCKDIM_X, COLUMNS_BLOCKDIM_Y);
+//
+//  convolutionColumnsKernel<<<blocks, threads>>>(d_Dst, d_Src, imageW, imageH,
+//                                                imageW);
+//  getLastCudaError("convolutionColumnsKernel() execution failed\n");
+//}
 
 extern "C"
 __global__ void photometric_mask_ud(float* ph_mask, float* lut, uint32_t width, uint32_t height){
