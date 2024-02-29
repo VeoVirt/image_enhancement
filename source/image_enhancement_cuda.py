@@ -205,7 +205,7 @@ class ToneMapping:
             numpy.uint32(width),
             numpy.uint32(height),
             grid=(ceil(width / (8*4)), ceil(height / tile), 1),
-            block=(tile, tile, 1)
+            block=(tile*4, tile, 1)
         )
 
         photometric_mask_ud_kernel(
