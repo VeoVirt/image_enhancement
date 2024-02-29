@@ -144,7 +144,7 @@ class ToneMapping:
             else:
                 lut[i] = (alpha * i) / (alpha - i_comp) * (1 / (2 * thr))
 
-    def gaussian_blur(self,out,buf,inp,width,height,kernel):
+    def gaussian_blur_and_enhance(self,mask,buf,inp,width,height,kernel):
         #setConvolutionKernel(h_Kernel); # cudaMemcpyToSymbol(c_Kernel, h_Kernel, KERNEL_LENGTH * sizeof(float));
         kernel_radius = 14
         row_blockdim_x = 8
@@ -164,10 +164,18 @@ class ToneMapping:
         assert(width % column_blockdim_x == 0);
         assert(height % (column_result_steps * column_blockdim_y) == 0);
 
+        color_to_gray_kernel(
+            mask,
+            inp,
+            numpy.uint32(width),
+            numpy.uint32(height),
+            grid=(ceil(width / 8), ceil(height / 8), 1),
+            block=(8, 8, 1)
+        )
 
         convolution_rows_kernel(
             buf,
-            inp,
+            mask,
             numpy.uint32(width),
             numpy.uint32(height),
             numpy.uint32(width),
@@ -177,7 +185,7 @@ class ToneMapping:
         )
 
         convolution_columns_kernel(
-            out,
+            mask,
             buf,
             numpy.uint32(width),
             numpy.uint32(height),
@@ -186,6 +194,8 @@ class ToneMapping:
             grid=(ceil(width/ (column_blockdim_x)), ceil(height/(column_result_steps*column_blockdim_y)), 1),
             block=(column_blockdim_x,column_blockdim_y, 1)
         )
+
+        self.enhance_image(inp,mask,width,height)
 
     def photometric_mask(self, d_image, d_ph_mask, width, height):
         tile = 8
@@ -244,6 +254,7 @@ class ToneMapping:
             block=(tile, 1, 1)
         )
 
+
     def enhance_image(self, d_image, d_ph_mask, width, height):
         tile = 16
 
@@ -284,32 +295,14 @@ if __name__ == "__main__":
     d_image = cuda.mem_alloc(image.nbytes)
     de_image = cuda.mem_alloc(image.nbytes)
     d_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
-    de_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
-
-    cuda.memcpy_htod(de_image, image)
-    color_to_gray_kernel(
-        de_image,
-        de_ph_mask,
-        numpy.uint32(width),
-        numpy.uint32(height),
-        grid=(ceil(width / 8), ceil(height / 8), 1),
-        block=(8, 8, 1)
-    )
-
+    de_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     kernel = gaussianKernel(29,7,twoDimensional=False).astype(numpy.float32).reshape(29)
     kernel_d = cuda.mem_alloc(kernel.nbytes)
     cuda.memcpy_htod(kernel_d, kernel)
-    x_out = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     x_buf = cuda.mem_alloc(width * height * numpy.float32().nbytes)
-    timeit(timemap,tone_mapping.gaussian_blur,x_out,x_buf,de_ph_mask,width,height,kernel_d)
 
-
-    #grayscale = numpy.zeros((height,width),dtype=numpy.float32)
-    #cuda.memcpy_dtoh(grayscale,de_ph_mask)
-    #mask_e = skimage.filters.gaussian(grayscale, sigma=7, output=None, mode='nearest', cval=0, preserve_range=False, truncate=4.0)
-
-    #cuda.memcpy_htod(de_ph_mask,mask_e)
-    tone_mapping.enhance_image(de_image,x_out,width,height)
+    for i in range(iterations):
+        timeit(timemap,tone_mapping.gaussian_blur_and_enhance,de_mask,x_buf,de_image,width,height,kernel_d)
 
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
@@ -329,13 +322,11 @@ if __name__ == "__main__":
     cuda.memcpy_dtoh(enhanced, d_image)
     cuda.memcpy_dtoh(enhanced_e,de_image)
     cuda.memcpy_dtoh(mask,d_ph_mask)
-    cuda.memcpy_dtoh(gauss_mask,x_out)
+    cuda.memcpy_dtoh(gauss_mask,de_mask)
     I8 = (((mask - mask.min()) / (mask.max() - mask.min())) * 255.9).astype(numpy.uint8)
-    #I8_e = (((mask_e - mask_e.min()) / (mask_e.max() - mask_e.min())) * 255.9).astype(numpy.uint8)
     I8_g = (((gauss_mask - gauss_mask.min()) / (gauss_mask.max() - gauss_mask.min())) * 255.9).astype(numpy.uint8)
     Image.fromarray(numpy.uint8(enhanced)).save(os.path.join(path, "..", "output.png"))
     Image.fromarray(numpy.uint8(enhanced_e)).save(os.path.join(path, "..", "output-e.png"))
 
     Image.fromarray(I8).save(os.path.join(path, "..", "mask.png"))
-    #Image.fromarray(I8_e).save(os.path.join(path, "..", "mask-e.png"))
     Image.fromarray(I8_g).save(os.path.join(path, "..", "mask-g.png"))
