@@ -288,7 +288,7 @@ if __name__ == "__main__":
         block=(8, 8, 1)
     )
 
-    kernel = matlab_style_gauss2D()[:,27]
+    kernel = numpy.array(matlab_style_gauss2D()[:,27].tolist(),dtype=numpy.float32)
     kernel_d = cuda.mem_alloc(kernel.nbytes)
     cuda.memcpy_htod(kernel_d, kernel)
     x_out = cuda.mem_alloc(width * height * numpy.float32().nbytes)
