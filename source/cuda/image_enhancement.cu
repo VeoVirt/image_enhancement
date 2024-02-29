@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cuda_runtime.h>
 #include "image_enhancement.cu.h"
 #include <assert.h>
@@ -371,9 +372,10 @@ __global__ void enhance_image(
     }
 
     float rgb[3];
-    rgb[0] = ((float) image[y * width * 3 + x * 3 + 0]) / 255.0f;
-    rgb[1] = ((float) image[y * width * 3 + x * 3 + 1]) / 255.0f;
-    rgb[2] = ((float) image[y * width * 3 + x * 3 + 2]) / 255.0f;
+    uint32_t idx = y * width * 3 + x * 3
+    rgb[0] = ((float) image[idx + 0]) / 255.0f;
+    rgb[1] = ((float) image[idx + 1]) / 255.0f;
+    rgb[2] = ((float) image[idx + 2]) / 255.0f;
 
     float mask = ph_mask[y * width + x];
 
@@ -389,7 +391,7 @@ __global__ void enhance_image(
 
     change_color_saturation(rgb, mask, threshold_dark_tones, local_boost, saturation_degree);
 
-    image[y * width * 3 + x * 3 + 0] = (uint8_t) max(0.0f, min(255.0f, rgb[0] * 255.0f));
-    image[y * width * 3 + x * 3 + 1] = (uint8_t) max(0.0f, min(255.0f, rgb[1] * 255.0f));
-    image[y * width * 3 + x * 3 + 2] = (uint8_t) max(0.0f, min(255.0f, rgb[2] * 255.0f));
+    image[idx + 0] = (uint8_t) max(0.0f, min(255.0f, rgb[0] * 255.0f));
+    image[idx + 1] = (uint8_t) max(0.0f, min(255.0f, rgb[1] * 255.0f));
+    image[idx + 2] = (uint8_t) max(0.0f, min(255.0f, rgb[2] * 255.0f));
 }
