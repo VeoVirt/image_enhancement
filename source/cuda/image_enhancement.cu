@@ -139,7 +139,7 @@ __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
   const int baseY = (blockIdx.y * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) *
                         COLUMNS_BLOCKDIM_Y +
                     threadIdx.y;
-  const float* d_Org = d_Src
+  const float* d_Org = d_Src;
   d_Src += baseY * pitch + baseX;
   d_Dst += baseY * pitch + baseX;
 
