@@ -323,7 +323,7 @@ if __name__ == "__main__":
     cuda.memcpy_dtoh(enhanced, d_image)
     cuda.memcpy_dtoh(enhanced_e,de_image)
     cuda.memcpy_dtoh(mask,d_ph_mask)
-    cuda.memcpy_dtoh(gauss_mask,de_mask)
+    cuda.memcpy_dtoh(gauss_mask,gray)
     I8 = (((mask - mask.min()) / (mask.max() - mask.min())) * 255.9).astype(numpy.uint8)
     I8_g = (((gauss_mask - gauss_mask.min()) / (gauss_mask.max() - gauss_mask.min())) * 255.9).astype(numpy.uint8)
     Image.fromarray(numpy.uint8(enhanced)).save(os.path.join(path, "..", "output.png"))
