@@ -1,7 +1,7 @@
 #include <cuda_runtime.h>
 #include "image_enhancement.cu.h"
 #include <assert.h>
-#include <helper_cuda.h>
+//#include <helper_cuda.h>
 #include <cooperative_groups.h>
 
 namespace cg = cooperative_groups;

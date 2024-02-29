@@ -1,13 +1,13 @@
 CXX = nvcc -O3 -arch=sm_80 -use_fast_math -D_FORCE_INLINES -Wno-deprecated-gpu-targets -std=c++11
 
-image_enhancement.o: source/cuda/image_enhancement.cu
-	$(CXX) -c $@ $<
+#image_enhancement.o: source/cuda/image_enhancement.cu
+#	$(CXX) -c $@ $<
 
-image_enhance.o: source/cuda/image_enhance.cu
-	$(CXX) -c $@ $<
+#image_enhance.o: source/cuda/image_enhance.cu
+#	$(CXX) -c $@ $<
 
-test: image_enhancement.o image_enhance.o
-	$(CXX) -o $@ $+
+#test: image_enhancement.o image_enhance.o
+#	$(CXX) -o $@ $+
 
 
 .PHONY: all
