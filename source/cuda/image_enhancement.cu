@@ -21,8 +21,8 @@ namespace cg = cooperative_groups;
 
 //__constant__ float c_Kernel[KERNEL_LENGTH]
 
-__device__ float to_gray(float rgb[3]){
-    return rgb[0] * 0.2125f + rgb[1] * 0.7154f + rgb[2] * 0.0721f;
+__device__ float to_gray(float r, float g, float b){
+    return r * 0.2125f + g * 0.7154f + b * 0.0721f;
 }
 
 extern "C"
@@ -33,13 +33,11 @@ __global__ void color_to_gray(uint8_t* color, float* gray, uint32_t width, uint3
     //if (width <= x || height <= y){
     //    return;
     //}
+    float r = ((float) color[y * width * 3 + x * 3 + 0]) / 255.0f;
+    float g = ((float) color[y * width * 3 + x * 3 + 1]) / 255.0f;
+    float b = ((float) color[y * width * 3 + x * 3 + 2]) / 255.0f;
 
-    float rgb[3];
-    rgb[0] = ((float) color[y * width * 3 + x * 3 + 0]) / 255.0f;
-    rgb[1] = ((float) color[y * width * 3 + x * 3 + 1]) / 255.0f;
-    rgb[2] = ((float) color[y * width * 3 + x * 3 + 2]) / 255.0f;
-
-    gray[y * width + x] = to_gray(rgb);
+    gray[y * width + x] = to_gray(r,g,b);
 }
 
 extern "C"
