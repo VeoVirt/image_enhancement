@@ -21,8 +21,8 @@ namespace cg = cooperative_groups;
 
 //__constant__ float c_Kernel[KERNEL_LENGTH]
 
-__device__ float to_gray(float r, float g, float b){
-    return r * 0.2125f + g * 0.7154f + b * 0.0721f;
+__device__ float to_gray(float rgb[3]){
+    return rgb[0] * 0.2125f + rgb[1] * 0.7154f + rgb[2] * 0.0721f;
 }
 
 extern "C"
@@ -30,18 +30,16 @@ __global__ void color_to_gray(uint8_t* color, float* gray, uint32_t width, uint3
     uint32_t x = blockIdx.x * blockDim.x + threadIdx.x;
     uint32_t y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    //if (width <= x || height <= y){
-    //    return;
-    //}
-    for (int i = 0; i < ROWS_RESULT_STEPS; i++)
-    {
-        int offset = i*ROWS_BLOCKDIM_X;
-        float r = ((float) color[y * width * 3 + x * 3 + 0 + offset*3]) / 255.0f;
-        float g = ((float) color[y * width * 3 + x * 3 + 1 + offset*3]) / 255.0f;
-        float b = ((float) color[y * width * 3 + x * 3 + 2 + offset*3]) / 255.0f;
-
-        gray[y * width + x + offset] = to_gray(r,g,b);
+    if (width <= x || height <= y){
+        return;
     }
+
+    float rgb[3];
+    rgb[0] = ((float) color[y * width * 3 + x * 3 + 0]) / 255.0f;
+    rgb[1] = ((float) color[y * width * 3 + x * 3 + 1]) / 255.0f;
+    rgb[2] = ((float) color[y * width * 3 + x * 3 + 2]) / 255.0f;
+
+    gray[y * width + x] = to_gray(rgb);
 }
 
 extern "C"
@@ -328,7 +326,7 @@ __device__ void graytone_to_color(float rgb[3], float gray){
 
     float graytone_linear = srgb_to_linear(gray);
 
-    float gray_linear = to_gray(rgb[0],rgb[1],rgb[2]);
+    float gray_linear = to_gray(rgb);
     if (gray_linear <= 0.0f){
         gray_linear = EPSILON;
     }
@@ -380,7 +378,7 @@ __global__ void enhance_image(
     float mask = ph_mask[y * width + x];
 
     float gray;
-    gray = to_gray(rgb[0],rgb[1],rgb[2]);
+    gray = to_gray(rgb);
     gray = local_contrast_enhancement(gray, mask, threshold_dark_tones, local_boost, detail_amp_global);
     gray = spatial_tonemapping(
         gray, mask, mid_tone_mapped, tonal_width_mapped, areas_dark_mapped,
