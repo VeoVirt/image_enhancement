@@ -321,4 +321,4 @@ if __name__ == "__main__":
 
     Image.fromarray(I8).save(os.path.join(path, "..", "mask.png"))
     Image.fromarray(I8_e).save(os.path.join(path, "..", "mask-e.png"))
-    Image.fromarray(I8_e).save(os.path.join(path, "..", "mask-g.png"))
+    Image.fromarray(I8_g).save(os.path.join(path, "..", "mask-g.png"))
