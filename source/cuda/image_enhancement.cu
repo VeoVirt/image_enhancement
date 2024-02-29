@@ -139,6 +139,7 @@ __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
   const int baseY = (blockIdx.y * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) *
                         COLUMNS_BLOCKDIM_Y +
                     threadIdx.y;
+  const float* d_Org = d_Src
   d_Src += baseY * pitch + baseX;
   d_Dst += baseY * pitch + baseX;
 
@@ -158,7 +159,7 @@ __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
     s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] =
         (baseY >= -i * COLUMNS_BLOCKDIM_Y)
             ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch]
-            : d_Src[baseX];
+            : d_Org[baseX];
   }
 
 // Lower halo
@@ -170,7 +171,7 @@ __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
     s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] =
         (imageH - baseY > i * COLUMNS_BLOCKDIM_Y)
             ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch]
-            : d_Src[imageW*(imageH-1)+baseX];
+            : d_Org[imageW*(imageH-1)+baseX];
   }
 
   // Compute and store results
