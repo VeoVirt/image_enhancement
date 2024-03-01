@@ -144,7 +144,18 @@ class ToneMapping:
             else:
                 lut[i] = (alpha * i) / (alpha - i_comp) * (1 / (2 * thr))
 
-    def gaussian_blur_and_enhance(self,gray,buf,inp,width,height,kernel):
+    def color_to_gray(self,inp,gray,width,height):
+        color_to_gray_kernel(
+            inp,
+            gray,
+            numpy.uint32(width),
+            numpy.uint32(height),
+            grid=(ceil(width / 8), ceil(height / 8), 1),
+            block=(8, 8, 1)
+        )
+
+
+    def gaussian_blur_and_enhance(self,gray,buf,width,height,kernel):
         kernel_radius = 14
         row_blockdim_x = 8
         row_blockdim_y = 4
@@ -162,15 +173,6 @@ class ToneMapping:
         assert(column_blockdim_y * column_halo_steps >= kernel_radius);
         assert(width % column_blockdim_x == 0);
         assert(height % (column_result_steps * column_blockdim_y) == 0);
-
-        timeit(color_to_gray_kernel,
-            inp,
-            gray,
-            numpy.uint32(width),
-            numpy.uint32(height),
-            (ceil(width / 8), ceil(height / 8), 1),
-            (8, 8, 1)
-        )
 
         convolution_rows_kernel(
             buf,
@@ -194,7 +196,7 @@ class ToneMapping:
             block=(column_blockdim_x,column_blockdim_y, 1)
         )
 
-        self.enhance_image(inp,gray,width,height)
+        #self.enhance_image(inp,gray,width,height)
 
     def photometric_mask_and_enhance(self, d_image, d_ph_mask, width, height):
         tile = 8
@@ -304,7 +306,9 @@ if __name__ == "__main__":
 
     for i in range(iterations):
         cuda.memcpy_htod(de_image, image)
-        tone_mapping.gaussian_blur_and_enhance(gray,x_buf,de_image,width,height,kernel_d)
+        tone_mapping.color_to_gray(de_image,gray,width,height)
+        tone_mapping.gaussian_blur_and_enhance(gray,x_buf,width,height,kernel_d)
+        tone_mapping.enhance_image(de_image,gray,width,height)
 
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
