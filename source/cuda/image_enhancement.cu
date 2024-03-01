@@ -45,7 +45,7 @@ __global__ void color_to_gray(uint8_t* color, float* gray, uint32_t width, uint3
 
 extern "C"
 __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
-                                      int imageH, int pitch, float* c_Kernel_u) {
+                                      int imageH, int pitch) {
   // Handle to thread block group
   cg::thread_block cta = cg::this_thread_block();
   __shared__ float
@@ -158,7 +158,7 @@ __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
 
 extern "C"
 __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
-                                         int imageH, int pitch, float* c_Kernel_u) {
+                                         int imageH, int pitch) {
   // Handle to thread block group
   cg::thread_block cta = cg::this_thread_block();
   __shared__ float s_Data[COLUMNS_BLOCKDIM_X][(COLUMNS_RESULT_STEPS +

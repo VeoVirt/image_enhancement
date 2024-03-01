@@ -156,7 +156,7 @@ class ToneMapping:
         )
 
 
-    def gaussian_blur_and_enhance(self,gray,buf,width,height,kernel):
+    def gaussian_blur_and_enhance(self,gray,buf,width,height):
         kernel_radius = 14
         row_blockdim_x = 8
         row_blockdim_y = 4
@@ -181,7 +181,6 @@ class ToneMapping:
             numpy.uint32(width),
             numpy.uint32(height),
             numpy.uint32(width),
-            kernel,
             grid=(ceil(width / (row_result_steps*row_blockdim_x)), ceil(height/row_blockdim_y), 1),
             block=(row_blockdim_x, row_blockdim_y, 1)
         )
@@ -192,7 +191,6 @@ class ToneMapping:
             numpy.uint32(width),
             numpy.uint32(height),
             numpy.uint32(width),
-            kernel,
             grid=(ceil(width/ (column_blockdim_x)), ceil(height/(column_result_steps*column_blockdim_y)), 1),
             block=(column_blockdim_x,column_blockdim_y, 1)
         )
@@ -299,16 +297,16 @@ if __name__ == "__main__":
     d_image = cuda.mem_alloc(image.nbytes)
     de_image = cuda.mem_alloc(image.nbytes)
     d_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
-    kernel = gaussianKernel(29,7,twoDimensional=False).astype(numpy.float32).reshape(29)
-    kernel_d = cuda.mem_alloc(kernel.nbytes)
-    cuda.memcpy_htod(kernel_d, kernel)
+    #kernel = gaussianKernel(29,7,twoDimensional=False).astype(numpy.float32).reshape(29)
+    #kernel_d = cuda.mem_alloc(kernel.nbytes)
+    #cuda.memcpy_htod(kernel_d, kernel)
     x_buf = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     gray = cuda.mem_alloc(width * height * numpy.float32().nbytes)
 
     for i in range(iterations):
         cuda.memcpy_htod(de_image, image)
         timeit(timemap,tone_mapping.preprocess,de_image,gray,width,height)
-        timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height,kernel_d)
+        timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height)
         timeit(timemap,tone_mapping.enhance_image,de_image,gray,width,height)
 
     for i in range(iterations):

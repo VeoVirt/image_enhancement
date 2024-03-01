@@ -9,11 +9,11 @@
 
 extern "C"
 __global__ void convolutionRowsGPU(float *d_Dst, float *d_Src, int imageW,
-                                   int imageH, int pitch, float* c_Kernel);
+                                   int imageH, int pitch);
 
 extern "C"
 __global__ void convolutionColumnsGPU(float *d_Dst, float *d_Src, int imageW,
-                                      int imageH, int pitch, float* c_Kernel);
+                                      int imageH, int pitch);
 
 extern "C"
 __global__ void color_to_gray(uint8_t* color, float* gray, uint32_t width, uint32_t height);
