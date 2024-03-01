@@ -128,7 +128,7 @@ __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
 
 extern "C"
 __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
-                                         int imageH, int pitch, float* c_Kernel) {
+                                         int imageH, int pitch, float* c_Kernel_u) {
   // Handle to thread block group
   cg::thread_block cta = cg::this_thread_block();
   __shared__ float s_Data[COLUMNS_BLOCKDIM_X][(COLUMNS_RESULT_STEPS +
@@ -183,8 +183,37 @@ __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
   for (int i = COLUMNS_HALO_STEPS;
        i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++) {
     float sum = 0;
+    float c_Kernel[29];
+    c_Kernel[0] = 0.00801895f
+    c_Kernel[1] = 0.01056259f
+    c_Kernel[2] = 0.013632f
+    c_Kernel[3] = 0.01723796f
+    c_Kernel[4] = 0.02135743f
+    c_Kernel[5] = 0.0259268f
+    c_Kernel[6] = 0.03083797f
+    c_Kernel[7] = 0.03593846f
+    c_Kernel[8] = 0.04103646f
+    c_Kernel[9] = 0.04591105f
+    c_Kernel[10] = 0.05032705f
+    c_Kernel[11] = 0.05405333f
+    c_Kernel[12] = 0.05688272f
+    c_Kernel[13] = 0.05865096f
+    c_Kernel[14] = 0.0592525f
+    c_Kernel[15] = 0.05865096f
+    c_Kernel[16] = 0.05688272f
+    c_Kernel[17] = 0.05405333f
+    c_Kernel[18] = 0.05032705f
+    c_Kernel[19] = 0.04591105f
+    c_Kernel[20] = 0.04103646f
+    c_Kernel[21] = 0.03593846f
+    c_Kernel[22] = 0.03083797f
+    c_Kernel[23] = 0.0259268f
+    c_Kernel[24] = 0.02135743f
+    c_Kernel[25] = 0.01723796f
+    c_Kernel[26] = 0.013632f
+    c_Kernel[27] = 0.01056259f
+    c_Kernel[28] = 0.00801895f
 #pragma unroll
-
     for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
       sum += c_Kernel[KERNEL_RADIUS - j] *
              s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y + j];
