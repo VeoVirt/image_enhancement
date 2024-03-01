@@ -359,6 +359,7 @@ __device__ void change_color_saturation(
     rgb[2] = max(0.0f, min(1.0f, gray + rgb[2] * saturation_degree * detail_amplification_local));
 }
 
+// play with bindings/datatypes/reuse/operators..
 extern "C"
 __global__ void enhance_image(
     uint8_t* image, float* ph_mask, float threshold_dark_tones, float local_boost, float saturation_degree,

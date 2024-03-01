@@ -163,13 +163,13 @@ class ToneMapping:
         assert(width % column_blockdim_x == 0);
         assert(height % (column_result_steps * column_blockdim_y) == 0);
 
-        color_to_gray_kernel(
+        timeit(color_to_gray_kernel,
             inp,
             gray,
             numpy.uint32(width),
             numpy.uint32(height),
-            grid=(ceil(width / 8), ceil(height / 8), 1),
-            block=(8, 8, 1)
+            (ceil(width / 8), ceil(height / 8), 1),
+            (8, 8, 1)
         )
 
         convolution_rows_kernel(
@@ -304,11 +304,11 @@ if __name__ == "__main__":
 
     for i in range(iterations):
         cuda.memcpy_htod(de_image, image)
-        timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,de_image,width,height,kernel_d)
+        tone_mapping.gaussian_blur_and_enhance(gray,x_buf,de_image,width,height,kernel_d)
 
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
-        timeit(timemap,tone_mapping.photometric_mask_and_enhance,d_image, d_ph_mask, width, height)
+        tone_mapping.photometric_mask_and_enhance(d_image, d_ph_mask, width, height)
 
     total = 0
     for fun in timemap:
