@@ -167,7 +167,7 @@ class ToneMapping:
         assert(width % (row_result_steps * row_blockdim_x) == 0);
         assert(height % row_blockdim_y == 0);
 
-        column_blockdim_x = 4
+        column_blockdim_x = 8
         column_blockdim_y = 8
         column_result_steps = 2
         column_halo_steps = 2

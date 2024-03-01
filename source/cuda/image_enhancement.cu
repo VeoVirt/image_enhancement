@@ -15,7 +15,7 @@ namespace cg = cooperative_groups;
 #define ROWS_RESULT_STEPS 4
 #define ROWS_HALO_STEPS 2
 
-#define COLUMNS_BLOCKDIM_X 4
+#define COLUMNS_BLOCKDIM_X 8
 #define COLUMNS_BLOCKDIM_Y 8
 #define COLUMNS_RESULT_STEPS 2
 #define COLUMNS_HALO_STEPS 2
