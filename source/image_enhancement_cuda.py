@@ -144,7 +144,7 @@ class ToneMapping:
             else:
                 lut[i] = (alpha * i) / (alpha - i_comp) * (1 / (2 * thr))
 
-    def color_to_gray(self,inp,gray,width,height):
+    def color_to_grayy(self,inp,gray,width,height):
         color_to_gray_kernel(
             inp,
             gray,
@@ -306,7 +306,7 @@ if __name__ == "__main__":
 
     for i in range(iterations):
         cuda.memcpy_htod(de_image, image)
-        timeit(tone_mapping.color_to_gray,de_image,gray,width,height)
+        timeit(tone_mapping.color_to_grayy,de_image,gray,width,height)
         timeit(tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height,kernel_d)
         timeit(tone_mapping.enhance_image,de_image,gray,width,height)
 
