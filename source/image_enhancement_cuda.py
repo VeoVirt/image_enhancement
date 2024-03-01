@@ -306,9 +306,9 @@ if __name__ == "__main__":
 
     for i in range(iterations):
         cuda.memcpy_htod(de_image, image)
-        tone_mapping.color_to_gray(de_image,gray,width,height)
-        tone_mapping.gaussian_blur_and_enhance(gray,x_buf,width,height,kernel_d)
-        tone_mapping.enhance_image(de_image,gray,width,height)
+        timeit(tone_mapping.color_to_gray,de_image,gray,width,height)
+        timeit(tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height,kernel_d)
+        timeit(tone_mapping.enhance_image,de_image,gray,width,height)
 
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
