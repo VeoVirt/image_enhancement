@@ -366,8 +366,7 @@ __device__ float change_color_saturation_uv(
     float value, float mask, float threshold_dark_tones, float local_boost, float saturation_degree
 ){
     float detail_amplification_local = ((1 - min(1.0f, mask / threshold_dark_tones)) * local_boost) + 1;
-    value = value - 0.5;
-    return max(-1.0f, min(1.0f, value * saturation_degree * detail_amplification_local) + 0.5);
+    return max(0.0f, min(1.0f, value * saturation_degree * detail_amplification_local));
 }
 
 // play with bindings/datatypes/reuse/operators..
@@ -387,7 +386,7 @@ __global__ void enhance_image(
 
     float gray = (float) Y[y * width + x] / 255.0f;
     //gray = to_gray(rgb);
-    float contrast_val = local_contrast_enhancement(gray, mask, threshold_dark_tones, local_boost, detail_amp_global);
+    gray = local_contrast_enhancement(gray, mask, threshold_dark_tones, local_boost, detail_amp_global);
     gray = spatial_tonemapping(
         contrast_val, mask, mid_tone_mapped, tonal_width_mapped, areas_dark_mapped,
         areas_bright_mapped
@@ -395,9 +394,9 @@ __global__ void enhance_image(
 
     Y[y*width + x] = (uint8_t) max(0.0f, min(255.0f, gray*255.0));
 
-    float u = (((float) U[y * width + x]) / 255.0f);
-    float v = (((float) V[y * width + x]) / 255.0f);
+    float u = 2*(((float) U[y * width + x]) / 255.0f) - 1;
+    float v = 2*(((float) V[y * width + x]) / 255.0f) - 1;
     // hmmm color is a bit dull, and running time is 0.35028000056743624 compared to 0.20
-    U[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(u, mask, threshold_dark_tones, local_boost, saturation_degree)) * 255.0f));
-    V[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(v, mask, threshold_dark_tones, local_boost, saturation_degree)) * 255.0f));
+    U[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(u, mask, threshold_dark_tones, local_boost, saturation_degree)+1)/2 * 255.0f));
+    V[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(v, mask, threshold_dark_tones, local_boost, saturation_degree)+1)/2 * 255.0f));
 }
