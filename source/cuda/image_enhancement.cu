@@ -34,7 +34,7 @@ __global__ void scale(uint8_t* src, float* dst, uint32_t width, uint32_t height)
     if (width <= x || height <= y){
         return;
     }
-    dst[0] = ((float) src[y * width + x]) / 255.0f;
+    dst[y * width + x] = ((float) src[y * width + x]) / 255.0f;
 }
 
 extern "C"
