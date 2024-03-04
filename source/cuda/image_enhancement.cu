@@ -388,7 +388,7 @@ __global__ void enhance_image(
     //gray = to_gray(rgb);
     gray = local_contrast_enhancement(gray, mask, threshold_dark_tones, local_boost, detail_amp_global);
     gray = spatial_tonemapping(
-        contrast_val, mask, mid_tone_mapped, tonal_width_mapped, areas_dark_mapped,
+        gray, mask, mid_tone_mapped, tonal_width_mapped, areas_dark_mapped,
         areas_bright_mapped
     );
 
