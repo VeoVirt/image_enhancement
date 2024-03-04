@@ -366,7 +366,7 @@ __device__ float change_color_saturation_uv(
     float value, float mask, float threshold_dark_tones, float local_boost, float saturation_degree
 ){
     float detail_amplification_local = ((1 - min(1.0f, mask / threshold_dark_tones)) * local_boost) + 1;
-    value = value - 0.5
+    value = value - 0.5;
     return max(-1.0f, min(1.0f, value * saturation_degree * detail_amplification_local) + 0.5);
 }
 
