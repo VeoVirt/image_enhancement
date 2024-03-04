@@ -296,7 +296,7 @@ if __name__ == "__main__":
     Y = image[:,:,0]
     #V = image[2]
     #U = image[1]
-    height, width, _ = image.shape
+    height, width = Y.shape
     iterations = 100
 
     d_image = cuda.mem_alloc(image.nbytes)
