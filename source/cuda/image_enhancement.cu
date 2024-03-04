@@ -398,6 +398,6 @@ __global__ void enhance_image(
     float u = 2*(((float) U[y * width + x]) / 255.0f) - 1;
     float v = 2*(((float) V[y * width + x]) / 255.0f) - 1;
     // hmmm color is a bit dull, and running time is 0.35028000056743624 compared to 0.20
-    U[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(u, mask, contrast_val*2-1, threshold_dark_tones, local_boost, saturation_degree)+ 1)/2 * 255.0f));
-    V[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(v, mask, contrast_val*2-1, threshold_dark_tones, local_boost, saturation_degree)+ 1)/2 * 255.0f));
+    U[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(v, mask, contrast_val*2-1, threshold_dark_tones, local_boost, saturation_degree)+u+ 1)/2 * 255.0f));
+    V[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (-change_color_saturation_uv(u, mask, contrast_val*2-1, threshold_dark_tones, local_boost, saturation_degree)+v+ 1)/2 * 255.0f));
 }
