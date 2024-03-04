@@ -292,12 +292,13 @@ if __name__ == "__main__":
     )
     timemap = defaultdict(int)
     image = Image.open(os.path.join(path, "..", "images", "test_img.png"))
-    imageY = numpy.asarray(image.convert("YCbCr"))
+    imageY = Image.open(os.path.join(path, "..", "images", "test_img.png"))
+    imageY = numpy.asarray(imageY.convert("YCbCr"))
     image = numpy.asarray(image.convert("RGB"))
     Y = imageY[:,:,0]
     #V = image[2]
     #U = image[1]
-    height, width = Y.shape
+    height, width, _ = Y.shape
     iterations = 100
 
     d_image = cuda.mem_alloc(image.nbytes)
