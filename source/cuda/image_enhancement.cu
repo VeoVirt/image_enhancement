@@ -112,20 +112,20 @@ __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
   }
 }
 
-extern "C" void convolutionRowsGPU(float *d_Dst, float *d_Src, int imageW,
-                                   int imageH) {
-  assert(ROWS_BLOCKDIM_X * ROWS_HALO_STEPS >= KERNEL_RADIUS);
-  assert(imageW % (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X) == 0);
-  assert(imageH % ROWS_BLOCKDIM_Y == 0);
-
-  dim3 blocks(imageW / (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X),
-              imageH / ROWS_BLOCKDIM_Y);
-  dim3 threads(ROWS_BLOCKDIM_X, ROWS_BLOCKDIM_Y);
-
-  convolutionRowsKernel<<<blocks, threads>>>(d_Dst, d_Src, imageW, imageH,
-                                             imageW);
-  getLastCudaError("convolutionRowsKernel() execution failed\n");
-}
+//extern "C" void convolutionRowsGPU(float *d_Dst, float *d_Src, int imageW,
+//                                   int imageH) {
+//  assert(ROWS_BLOCKDIM_X * ROWS_HALO_STEPS >= KERNEL_RADIUS);
+//  assert(imageW % (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X) == 0);
+//  assert(imageH % ROWS_BLOCKDIM_Y == 0);
+//
+//  dim3 blocks(imageW / (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X),
+//              imageH / ROWS_BLOCKDIM_Y);
+//  dim3 threads(ROWS_BLOCKDIM_X, ROWS_BLOCKDIM_Y);
+//
+//  convolutionRowsKernel<<<blocks, threads>>>(d_Dst, d_Src, imageW, imageH,
+//                                             imageW);
+//  getLastCudaError("convolutionRowsKernel() execution failed\n");
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Column convolution filter
@@ -203,20 +203,20 @@ __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
   }
 }
 
-extern "C" void convolutionColumnsGPU(float *d_Dst, float *d_Src, int imageW,
-                                      int imageH) {
-  assert(COLUMNS_BLOCKDIM_Y * COLUMNS_HALO_STEPS >= KERNEL_RADIUS);
-  assert(imageW % COLUMNS_BLOCKDIM_X == 0);
-  assert(imageH % (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y) == 0);
-
-  dim3 blocks(imageW / COLUMNS_BLOCKDIM_X,
-              imageH / (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y));
-  dim3 threads(COLUMNS_BLOCKDIM_X, COLUMNS_BLOCKDIM_Y);
-
-  convolutionColumnsKernel<<<blocks, threads>>>(d_Dst, d_Src, imageW, imageH,
-                                                imageW);
-  getLastCudaError("convolutionColumnsKernel() execution failed\n");
-}
+//extern "C" void convolutionColumnsGPU(float *d_Dst, float *d_Src, int imageW,
+//                                      int imageH) {
+//  assert(COLUMNS_BLOCKDIM_Y * COLUMNS_HALO_STEPS >= KERNEL_RADIUS);
+//  assert(imageW % COLUMNS_BLOCKDIM_X == 0);
+//  assert(imageH % (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y) == 0);
+//
+//  dim3 blocks(imageW / COLUMNS_BLOCKDIM_X,
+//              imageH / (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y));
+//  dim3 threads(COLUMNS_BLOCKDIM_X, COLUMNS_BLOCKDIM_Y);
+//
+//  convolutionColumnsKernel<<<blocks, threads>>>(d_Dst, d_Src, imageW, imageH,
+//                                                imageW);
+//  getLastCudaError("convolutionColumnsKernel() execution failed\n");
+//}
 
 extern "C"
 __global__ void photometric_mask_ud(float* ph_mask, float* lut, uint32_t width, uint32_t height){
@@ -371,7 +371,7 @@ __device__ void change_color_saturation(
 // play with bindings/datatypes/reuse/operators..
 extern "C"
 __global__ void enhance_image(
-    uint8_t* Y, float* ph_mask, float threshold_dark_tones, float local_boost, float saturation_degree,
+    uint8_t* image, float* ph_mask, float threshold_dark_tones, float local_boost, float saturation_degree,
     float mid_tone_mapped, float tonal_width_mapped, float areas_dark_mapped, float areas_bright_mapped, float detail_amp_global, uint32_t width, uint32_t height
 ){
     // gray color in Y
@@ -391,15 +391,15 @@ __global__ void enhance_image(
 
     float mask = ph_mask[y * width + x];
 
-    float gray = (float) Y[y * width + x];
-    gray = to_gray(rgb);
+    float gray = (float) image[y * width + x];
+    //gray = to_gray(rgb);
     gray = local_contrast_enhancement(gray, mask, threshold_dark_tones, local_boost, detail_amp_global);
     gray = spatial_tonemapping(
         gray, mask, mid_tone_mapped, tonal_width_mapped, areas_dark_mapped,
         areas_bright_mapped
     );
 
-    Y[y*width + x] = (uint8_t) max(0.0f, min(255.0f, gray));
+    image[y*width + x] = (uint8_t) max(0.0f, min(255.0f, gray));
 
     //graytone_to_color(rgb, gray);
 
