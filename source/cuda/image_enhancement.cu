@@ -367,7 +367,7 @@ __device__ float change_color_saturation_uv(
 ){
     float detail_amplification_local = ((1 - min(1.0f, mask / threshold_dark_tones)) * local_boost) + 1;
 
-    return max(0.0f, min(1.0f, value * saturation_degree * detail_amplification_local));
+    return max(-1.0f, min(1.0f, value * saturation_degree * detail_amplification_local));
 }
 
 // play with bindings/datatypes/reuse/operators..
@@ -403,10 +403,10 @@ __global__ void enhance_image(
 
     Y[y*width + x] = (uint8_t) max(0.0f, min(255.0f, gray*255.0));
 
-    float u = (float) U[y * width + x] / 255.0f;
-    float v = (float) V[y * width + x] / 255.0f;
-    U[y*width + x] = (uint8_t) max(0.0f, min(255.0f, change_color_saturation_uv(u, mask, threshold_dark_tones, local_boost, saturation_degree) * 255.0f));
-    V[y*width + x] = (uint8_t) max(0.0f, min(255.0f, change_color_saturation_uv(v, mask, threshold_dark_tones, local_boost, saturation_degree) * 255.0f));
+    float u = 2*(((float) U[y * width + x]) / 255.0f) - 1;
+    float v = 2*(((float) U[y * width + x]) / 255.0f) - 1;
+    U[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(u, mask, threshold_dark_tones, local_boost, saturation_degree)/2 + 1) * 255.0f));
+    V[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(v, mask, threshold_dark_tones, local_boost, saturation_degree)/2 + 1) * 255.0f));
     //graytone_to_color(rgb, gray);
 
     //change_color_saturation(rgb, mask, threshold_dark_tones, local_boost, saturation_degree);
