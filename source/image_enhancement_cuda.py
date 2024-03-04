@@ -26,7 +26,7 @@ from PIL import Image
 path = os.path.dirname(__file__)
 mod = cuda.module_from_file(os.path.join(path, "image_enhancement.cubin"))
 
-color_to_gray_kernel = mod.get_function("color_to_gray")
+scale_kernel = mod.get_function("scale")
 photometric_mask_ud_kernel = mod.get_function("photometric_mask_ud")
 photometric_mask_du_kernel = mod.get_function("photometric_mask_du")
 photometric_mask_lr_kernel = mod.get_function("photometric_mask_lr")
@@ -147,7 +147,7 @@ class ToneMapping:
 
     def preprocess(self,inp,gray,width,height):
         tile = 8
-        color_to_gray_kernel(
+        scale_kernel(
             inp,
             gray,
             numpy.uint32(width),
@@ -302,29 +302,22 @@ if __name__ == "__main__":
     iterations = 100
 
     #d_image = cuda.mem_alloc(image.nbytes)
-    de_image = cuda.mem_alloc(Y.nbytes)
+    Y_d = cuda.mem_alloc(Y.nbytes)
     d_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     x_buf = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     gray = cuda.mem_alloc(width * height * numpy.float32().nbytes)
 
     for i in range(iterations):
-        cuda.memcpy_htod(gray, numpy.float32(Y) / 255.0)
-        cuda.memcpy_htod(de_image, numpy.ascontiguousarray(Y))
-        #timeit(timemap,tone_mapping.preprocess,de_image,gray,width,height)
+        cuda.memcpy_htod(Y_d, numpy.ascontiguousarray(Y))
+        timeit(timemap,tone_mapping.preprocess,Y_d,gray,width,height)
         timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height)
-        timeit(timemap,tone_mapping.enhance_image,de_image,gray,width,height)
+        timeit(timemap,tone_mapping.enhance_image,Y_d,gray,width,height)
 
     newY = numpy.empty_like(imageY[:,:,0])
-    cuda.memcpy_dtoh(newY,de_image)
+    cuda.memcpy_dtoh(newY,Y_d)
 
     imageY = numpy.array(imageY)
     imageY[:,:,0] = newY
-
-
-
-    #for i in range(iterations):
-    #    cuda.memcpy_htod(d_image, image)
-    #    tone_mapping.photometric_mask_and_enhance(d_image, d_ph_mask, width, height)
 
     total = 0
     for fun in timemap:
@@ -332,18 +325,8 @@ if __name__ == "__main__":
         print(f"{fun}: {timemap[fun]/iterations} ms")
         total = total + timemap[fun]/iterations
     print(f"total: {total} ms")
-    #enhanced = numpy.empty_like(image)
-    #enhanced_e = numpy.empty_like(image)
-    #mask = numpy.zeros((height,width),dtype=numpy.float32)
     gauss_mask = numpy.zeros((height,width),dtype=numpy.float32)
-    #cuda.memcpy_dtoh(enhanced, d_image)
-    #cuda.memcpy_dtoh(enhanced_e,de_image)
-    #cuda.memcpy_dtoh(mask,d_ph_mask)
     cuda.memcpy_dtoh(gauss_mask,gray)
-    #I8 = (((mask - mask.min()) / (mask.max() - mask.min())) * 255.9).astype(numpy.uint8)
     I8_g = (((gauss_mask - gauss_mask.min()) / (gauss_mask.max() - gauss_mask.min())) * 255.9).astype(numpy.uint8)
-    #Image.fromarray(numpy.uint8(enhanced)).save(os.path.join(path, "..", "output.png"))
-    #Image.fromarray(numpy.uint8(enhanced_e)).save(os.path.join(path, "..", "output-e.png"))
     Image.fromarray(numpy.uint8(imageY),mode='YCbCr').convert('RGB').save(os.path.join(path, "..", "output-yuv.png"))
-    #Image.fromarray(I8).save(os.path.join(path, "..", "mask.png"))
     Image.fromarray(I8_g).save(os.path.join(path, "..", "mask-g.png"))

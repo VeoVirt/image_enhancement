@@ -27,20 +27,14 @@ __device__ float to_gray(float rgb[3]){
 }
 
 extern "C"
-__global__ void color_to_gray(uint8_t* color, float* gray, uint32_t width, uint32_t height){
+__global__ void scale(uint8_t* src, float* dst, uint32_t width, uint32_t height){
     uint32_t x = blockIdx.x * blockDim.x + threadIdx.x;
     uint32_t y = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (width <= x || height <= y){
         return;
     }
-
-    float rgb[3];
-    rgb[0] = ((float) color[y * width * 3 + x * 3 + 0]) / 255.0f;
-    rgb[1] = ((float) color[y * width * 3 + x * 3 + 1]) / 255.0f;
-    rgb[2] = ((float) color[y * width * 3 + x * 3 + 2]) / 255.0f;
-
-    gray[y * width + x] = to_gray(rgb);
+    dst[0] = ((float) src[y * width + x]) / 255.0f;
 }
 
 extern "C"
@@ -391,7 +385,7 @@ __global__ void enhance_image(
 
     float mask = ph_mask[y * width + x];
 
-    float gray = (float) image[y * width + x] / 255.0f;
+    float gray = (float) image[y * width + x] / 255.0;
     //gray = to_gray(rgb);
     gray = local_contrast_enhancement(gray, mask, threshold_dark_tones, local_boost, detail_amp_global);
     gray = spatial_tonemapping(
@@ -399,7 +393,7 @@ __global__ void enhance_image(
         areas_bright_mapped
     );
 
-    image[y*width + x] = (uint8_t) max(0.0f, min(255.0f, gray*255.0f));
+    image[y*width + x] = (uint8_t) max(0.0f, min(255.0f, gray*255.0));
 
     //graytone_to_color(rgb, gray);
 

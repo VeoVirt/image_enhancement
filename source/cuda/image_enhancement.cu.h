@@ -16,7 +16,7 @@ __global__ void convolutionColumnsGPU(float *d_Dst, float *d_Src, int imageW,
                                       int imageH, int pitch);
 
 extern "C"
-__global__ void color_to_gray(uint8_t* color, float* gray, uint32_t width, uint32_t height);
+__global__ void scale(uint8_t* src, float* dst, uint32_t width, uint32_t height);
 
 extern "C"
 __global__ void photometric_mask_ud(float* ph_mask, float* lut, uint32_t width, uint32_t height);
