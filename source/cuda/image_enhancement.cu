@@ -38,11 +38,11 @@ __global__ void scale(uint8_t* src, float* dst, uint32_t width, uint32_t height)
 }
 
 extern "C"
-__global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
+__global__ void convolutionRowsKernel(float *d_Dst, uint8_t *d_Src, int imageW,
                                       int imageH, int pitch) {
   // Handle to thread block group
   cg::thread_block cta = cg::this_thread_block();
-  __shared__ float
+  __shared__ uint8_t
       s_Data[ROWS_BLOCKDIM_Y][(ROWS_RESULT_STEPS + 2 * ROWS_HALO_STEPS) *
                               ROWS_BLOCKDIM_X];
 
@@ -54,7 +54,7 @@ __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
       threadIdx.x;
   const int baseY = blockIdx.y * ROWS_BLOCKDIM_Y + threadIdx.y;
 
-  const float * d_Org = d_Src;
+  const uint8_t * d_Org = d_Src;
   d_Src += baseY * pitch + baseX;
   d_Dst += baseY * pitch + baseX;
 
@@ -99,7 +99,7 @@ __global__ void convolutionRowsKernel(float *d_Dst, float *d_Src, int imageW,
 
     for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
       sum += c_Kernel[KERNEL_RADIUS - j] *
-             s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j];
+             ((float)(s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j]) / 255.0f);
     }
 
     d_Dst[i * ROWS_BLOCKDIM_X] = sum;

@@ -157,7 +157,7 @@ class ToneMapping:
         )
 
 
-    def gaussian_blur_and_enhance(self,gray,buf,width,height):
+    def gaussian_blur_and_enhance(self,gray,buf,inp,width,height):
         kernel_radius = 14
         row_blockdim_x = 8
         row_blockdim_y = 4
@@ -178,7 +178,7 @@ class ToneMapping:
 
         convolution_rows_kernel(
             buf,
-            gray,
+            inp,
             numpy.uint32(width),
             numpy.uint32(height),
             numpy.uint32(width),
@@ -309,8 +309,8 @@ if __name__ == "__main__":
 
     for i in range(iterations):
         cuda.memcpy_htod(Y_d, numpy.ascontiguousarray(Y))
-        timeit(timemap,tone_mapping.preprocess,Y_d,gray,width,height)
-        timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height)
+        #timeit(timemap,tone_mapping.preprocess,Y_d,gray,width,height)
+        timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,Y_d,width,height)
         timeit(timemap,tone_mapping.enhance_image,Y_d,gray,width,height)
 
     newY = numpy.empty_like(imageY[:,:,0])

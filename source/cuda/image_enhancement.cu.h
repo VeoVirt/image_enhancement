@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <stdint.h>
 
 #ifndef IMAGE_ENHANCEMENT_H
@@ -8,7 +9,7 @@
 
 
 extern "C"
-__global__ void convolutionRowsGPU(float *d_Dst, float *d_Src, int imageW,
+__global__ void convolutionRowsGPU(float *d_Dst, uint8_t *d_Src, int imageW,
                                    int imageH, int pitch);
 
 extern "C"
