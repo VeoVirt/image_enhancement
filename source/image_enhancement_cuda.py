@@ -317,6 +317,7 @@ if __name__ == "__main__":
     newY = numpy.empty_like(imageY[:,:,0])
     cuda.memcpy_dtoh(newY,de_image)
 
+    imageY = numpy.array(imageY)
     imageY[:,:,0] = newY
 
 
