@@ -306,7 +306,7 @@ if __name__ == "__main__":
     gray = cuda.mem_alloc(width * height * numpy.float32().nbytes)
 
     for i in range(iterations):
-        cuda.memcpy_htod(gray, Y)
+        cuda.memcpy_htod(gray, Y.astype(float))
         cuda.memcpy_htod(de_image, Y)
         #timeit(timemap,tone_mapping.preprocess,de_image,gray,width,height)
         timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height)
