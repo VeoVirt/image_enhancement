@@ -5,6 +5,7 @@ import pycuda.autoinit
 import datetime as dt
 import skimage
 import math
+from skimage.color import rgb2yuv
 from collections import defaultdict
 
 
@@ -291,23 +292,28 @@ if __name__ == "__main__":
     )
     timemap = defaultdict(int)
     image = Image.open(os.path.join(path, "..", "images", "test_img.png"))
-    image = numpy.asarray(image.convert("RGB"))
+    image = numpy.asarray(image.convert("YCbCr"))
+    Y = image[0]
+    #V = image[2]
+    #U = image[1]
     height, width, _ = image.shape
     iterations = 100
+
     d_image = cuda.mem_alloc(image.nbytes)
-    de_image = cuda.mem_alloc(image.nbytes)
+    de_image = cuda.mem_alloc(Y.nbytes)
     d_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
-    #kernel = gaussianKernel(29,7,twoDimensional=False).astype(numpy.float32).reshape(29)
-    #kernel_d = cuda.mem_alloc(kernel.nbytes)
-    #cuda.memcpy_htod(kernel_d, kernel)
     x_buf = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     gray = cuda.mem_alloc(width * height * numpy.float32().nbytes)
 
     for i in range(iterations):
-        cuda.memcpy_htod(de_image, image)
-        timeit(timemap,tone_mapping.preprocess,de_image,gray,width,height)
+        cuda.memcpy_htod(gray, Y)
+        #timeit(timemap,tone_mapping.preprocess,de_image,gray,width,height)
         timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height)
         timeit(timemap,tone_mapping.enhance_image,de_image,gray,width,height)
+
+    cuda.memcpy_dtoh(image[0],de_image)
+
+
 
     for i in range(iterations):
         cuda.memcpy_htod(d_image, image)
@@ -320,17 +326,17 @@ if __name__ == "__main__":
         total = total + timemap[fun]/iterations
     print(f"total: {total} ms")
     enhanced = numpy.empty_like(image)
-    enhanced_e = numpy.empty_like(image)
+    #enhanced_e = numpy.empty_like(image)
     mask = numpy.zeros((height,width),dtype=numpy.float32)
     gauss_mask = numpy.zeros((height,width),dtype=numpy.float32)
     cuda.memcpy_dtoh(enhanced, d_image)
-    cuda.memcpy_dtoh(enhanced_e,de_image)
+    #cuda.memcpy_dtoh(enhanced_e,de_image)
     cuda.memcpy_dtoh(mask,d_ph_mask)
     cuda.memcpy_dtoh(gauss_mask,gray)
     I8 = (((mask - mask.min()) / (mask.max() - mask.min())) * 255.9).astype(numpy.uint8)
     I8_g = (((gauss_mask - gauss_mask.min()) / (gauss_mask.max() - gauss_mask.min())) * 255.9).astype(numpy.uint8)
     Image.fromarray(numpy.uint8(enhanced)).save(os.path.join(path, "..", "output.png"))
-    Image.fromarray(numpy.uint8(enhanced_e)).save(os.path.join(path, "..", "output-e.png"))
-
+    #Image.fromarray(numpy.uint8(enhanced_e)).save(os.path.join(path, "..", "output-e.png"))
+    Image.fromarray(numpy.uint8(image),mode='YCbCr').convert('RGB').save(os.path.join(path, "..", "output-yuv.png"))
     Image.fromarray(I8).save(os.path.join(path, "..", "mask.png"))
     Image.fromarray(I8_g).save(os.path.join(path, "..", "mask-g.png"))
