@@ -292,8 +292,9 @@ if __name__ == "__main__":
     )
     timemap = defaultdict(int)
     image = Image.open(os.path.join(path, "..", "images", "test_img.png"))
-    image = numpy.asarray(image.convert("YCbCr"))
-    Y = image[:,:,0]
+    imageY = numpy.asarray(image.convert("YCbCr"))
+    image = numpy.asarray(image.convert("RGB"))
+    Y = imageY[:,:,0]
     #V = image[2]
     #U = image[1]
     height, width = Y.shape
@@ -306,16 +307,16 @@ if __name__ == "__main__":
     gray = cuda.mem_alloc(width * height * numpy.float32().nbytes)
 
     for i in range(iterations):
-        cuda.memcpy_htod(gray, Y.astype(float))
+        cuda.memcpy_htod(gray, numpy.float32(Y))
         cuda.memcpy_htod(de_image, Y)
         #timeit(timemap,tone_mapping.preprocess,de_image,gray,width,height)
         timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height)
         timeit(timemap,tone_mapping.enhance_image,de_image,gray,width,height)
 
-    newY = numpy.empty_like(image[:,:,0])
+    newY = numpy.empty_like(imageY[:,:,0])
     cuda.memcpy_dtoh(newY,de_image)
 
-    image[:,:,0] = newY
+    imageY[:,:,0] = newY
 
 
 
@@ -341,6 +342,6 @@ if __name__ == "__main__":
     I8_g = (((gauss_mask - gauss_mask.min()) / (gauss_mask.max() - gauss_mask.min())) * 255.9).astype(numpy.uint8)
     Image.fromarray(numpy.uint8(enhanced)).save(os.path.join(path, "..", "output.png"))
     #Image.fromarray(numpy.uint8(enhanced_e)).save(os.path.join(path, "..", "output-e.png"))
-    Image.fromarray(numpy.uint8(image),mode='YCbCr').convert('RGB').save(os.path.join(path, "..", "output-yuv.png"))
+    Image.fromarray(numpy.uint8(imageY),mode='YCbCr').convert('RGB').save(os.path.join(path, "..", "output-yuv.png"))
     Image.fromarray(I8).save(os.path.join(path, "..", "mask.png"))
     Image.fromarray(I8_g).save(os.path.join(path, "..", "mask-g.png"))
