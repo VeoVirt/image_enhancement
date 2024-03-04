@@ -293,7 +293,7 @@ if __name__ == "__main__":
     timemap = defaultdict(int)
     image = Image.open(os.path.join(path, "..", "images", "test_img.png"))
     image = numpy.asarray(image.convert("YCbCr"))
-    Y = image[0]
+    Y = image[:,:,0]
     #V = image[2]
     #U = image[1]
     height, width, _ = image.shape
@@ -312,7 +312,10 @@ if __name__ == "__main__":
         timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height)
         timeit(timemap,tone_mapping.enhance_image,de_image,gray,width,height)
 
-    cuda.memcpy_dtoh(image[0],de_image)
+    newY = numpy.empty_like(image[:,:,0])
+    cuda.memcpy_dtoh(newY,de_image)
+
+    image[:,:,0] = newY
 
 
 
