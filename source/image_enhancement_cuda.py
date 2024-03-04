@@ -240,7 +240,7 @@ if __name__ == "__main__":
         cuda.memcpy_htod(U_d, numpy.ascontiguousarray(U))
         cuda.memcpy_htod(V_d, numpy.ascontiguousarray(V))
         timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,Y_d,width,height)
-        timeit(timemap,tone_mapping.enhance_image,Y_d,gray,width,height)
+        timeit(timemap,tone_mapping.enhance_image,Y_d,U_d,V_d,gray,width,height)
 
     new_Y = numpy.empty_like(Y)
     cuda.memcpy_dtoh(new_Y,Y_d)
