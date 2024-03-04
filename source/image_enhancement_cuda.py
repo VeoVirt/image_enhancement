@@ -145,17 +145,6 @@ class ToneMapping:
             else:
                 lut[i] = (alpha * i) / (alpha - i_comp) * (1 / (2 * thr))
 
-    def preprocess(self,inp,gray,width,height):
-        tile = 8
-        scale_kernel(
-            inp,
-            gray,
-            numpy.uint32(width),
-            numpy.uint32(height),
-            grid=(ceil(width / tile), ceil(height / tile), 1),
-            block=(tile, tile, 1)
-        )
-
 
     def gaussian_blur_and_enhance(self,gray,buf,inp,width,height):
         kernel_radius = 14
@@ -196,73 +185,14 @@ class ToneMapping:
             block=(column_blockdim_x,column_blockdim_y, 1)
         )
 
-        #self.enhance_image(inp,gray,width,height)
 
-    def photometric_mask_and_enhance(self, d_image, d_ph_mask, width, height):
-        tile = 8
-
-        color_to_gray_kernel(
-            d_image,
-            d_ph_mask,
-            numpy.uint32(width),
-            numpy.uint32(height),
-            grid=(ceil(width / tile), ceil(height / tile), 1),
-            block=(tile, tile, 1)
-        )
-
-        photometric_mask_ud_kernel(
-            d_ph_mask,
-            self.d_lut_a,
-            numpy.uint32(width),
-            numpy.uint32(height),
-            grid=(ceil(width / tile), 1, 1),
-            block=(tile, 1, 1)
-        )
-
-        photometric_mask_lr_kernel(
-            d_ph_mask,
-            self.d_lut_a,
-            numpy.uint32(width),
-            numpy.uint32(height),
-            grid=(ceil(height / tile), 1, 1),
-            block=(tile, 1, 1)
-        )
-
-        photometric_mask_du_kernel(
-            d_ph_mask,
-            self.d_lut_a,
-            numpy.uint32(width),
-            numpy.uint32(height),
-            grid=(ceil(width / tile), 1, 1),
-            block=(tile, 1, 1)
-        )
-
-        photometric_mask_rl_kernel(
-            d_ph_mask,
-            self.d_lut_b,
-            numpy.uint32(width),
-            numpy.uint32(height),
-            grid=(ceil(height / tile), 1, 1),
-            block=(tile, 1, 1)
-        )
-
-        photometric_mask_ud_kernel(
-            d_ph_mask,
-            self.d_lut_b,
-            numpy.uint32(width),
-            numpy.uint32(height),
-            grid=(ceil(width / tile), 1, 1),
-            block=(tile, 1, 1)
-        )
-
-        self.enhance_image(d_image,d_ph_mask,width,height)
-
-
-    def enhance_image(self, d_image, d_ph_mask, width, height):
+    def enhance_image(self, Y, U, V, d_ph_mask, width, height):
         tile = 16
 
         enhance_image_kernel(
-            d_image,
+            Y,
+            U,
+            V,
             d_ph_mask,
             self.threshold_dark_tones,
             self.local_boost,
@@ -291,33 +221,40 @@ if __name__ == "__main__":
         color_correction = False
     )
     timemap = defaultdict(int)
-    #image = Image.open(os.path.join(path, "..", "images", "test_img.png"))
-    imageY = Image.open(os.path.join(path, "..", "images", "test_img.png"))
-    imageY = numpy.asarray(imageY.convert("YCbCr"))
-    #image = numpy.asarray(image.convert("RGB"))
-    Y = imageY[:,:,0]
-    #V = image[2]
-    #U = image[1]
+    image = Image.open(os.path.join(path, "..", "images", "test_img.png"))
+    image = numpy.asarray(image.convert("YCbCr"))
+    Y = image[:,:,0]
+    U = image[:,:,1]
+    V = image[:,:,2]
     height, width = Y.shape
     iterations = 100
-
-    #d_image = cuda.mem_alloc(image.nbytes)
     Y_d = cuda.mem_alloc(Y.nbytes)
+    U_d = cuda.mem_alloc(U.nbytes)
+    V_d = cuda.mem_alloc(V.nbytes)
     d_ph_mask = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     x_buf = cuda.mem_alloc(width * height * numpy.float32().nbytes)
     gray = cuda.mem_alloc(width * height * numpy.float32().nbytes)
 
     for i in range(iterations):
         cuda.memcpy_htod(Y_d, numpy.ascontiguousarray(Y))
-        #timeit(timemap,tone_mapping.preprocess,Y_d,gray,width,height)
+        cuda.memcpy_htod(U_d, numpy.ascontiguousarray(U))
+        cuda.memcpy_htod(V_d, numpy.ascontiguousarray(V))
         timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,Y_d,width,height)
         timeit(timemap,tone_mapping.enhance_image,Y_d,gray,width,height)
 
-    newY = numpy.empty_like(imageY[:,:,0])
-    cuda.memcpy_dtoh(newY,Y_d)
+    new_Y = numpy.empty_like(Y)
+    cuda.memcpy_dtoh(new_Y,Y_d)
 
-    imageY = numpy.array(imageY)
-    imageY[:,:,0] = newY
+    new_U = numpy.empty_like(U)
+    cuda.memcpy_dtoh(new_U,U_d)
+
+    new_V = numpy.empty_like(V)
+    cuda.memcpy_dtoh(new_V,V_d)
+
+    new_image = numpy.array(image)
+    new_image[:,:,0] = new_Y
+    new_image[:,:,1] = new_U
+    new_image[:,:,2] = new_V
 
     total = 0
     for fun in timemap:
@@ -328,5 +265,5 @@ if __name__ == "__main__":
     gauss_mask = numpy.zeros((height,width),dtype=numpy.float32)
     cuda.memcpy_dtoh(gauss_mask,gray)
     I8_g = (((gauss_mask - gauss_mask.min()) / (gauss_mask.max() - gauss_mask.min())) * 255.9).astype(numpy.uint8)
-    Image.fromarray(numpy.uint8(imageY),mode='YCbCr').convert('RGB').save(os.path.join(path, "..", "output-yuv.png"))
+    Image.fromarray(numpy.uint8(new_image),mode='YCbCr').convert('RGB').save(os.path.join(path, "..", "output-yuv.png"))
     Image.fromarray(I8_g).save(os.path.join(path, "..", "mask-g.png"))

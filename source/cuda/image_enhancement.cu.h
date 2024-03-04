@@ -33,7 +33,7 @@ __global__ void photometric_mask_rl(float* ph_mask, float* lut, uint32_t width, 
 
 extern "C"
 __global__ void enhance_image(
-    uint8_t* image, float* ph_mask, float threshold_dark_tones, float local_boost, float saturation_degree,
+    uint8_t* Y, uint8_t* U, uint8_t* V, float* ph_mask, float threshold_dark_tones, float local_boost, float saturation_degree,
     float mid_tone_mapped, float tonal_width_mapped, float areas_dark_mapped, float areas_bright_mapped, float detail_amp_global, uint32_t width, uint32_t height
 );
 

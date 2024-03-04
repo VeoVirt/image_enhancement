@@ -365,7 +365,7 @@ __device__ void change_color_saturation(
 // play with bindings/datatypes/reuse/operators..
 extern "C"
 __global__ void enhance_image(
-    uint8_t* image, float* ph_mask, float threshold_dark_tones, float local_boost, float saturation_degree,
+    uint8_t* Y, uint8_t* U, uint8_t* V, float* ph_mask, float threshold_dark_tones, float local_boost, float saturation_degree,
     float mid_tone_mapped, float tonal_width_mapped, float areas_dark_mapped, float areas_bright_mapped, float detail_amp_global, uint32_t width, uint32_t height
 ){
     // gray color in Y
@@ -385,7 +385,7 @@ __global__ void enhance_image(
 
     float mask = ph_mask[y * width + x];
 
-    float gray = (float) image[y * width + x] / 255.0;
+    float gray = (float) image[y * width + x] / 255.0f;
     //gray = to_gray(rgb);
     gray = local_contrast_enhancement(gray, mask, threshold_dark_tones, local_boost, detail_amp_global);
     gray = spatial_tonemapping(
