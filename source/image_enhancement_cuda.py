@@ -309,7 +309,7 @@ if __name__ == "__main__":
 
     for i in range(iterations):
         cuda.memcpy_htod(gray, numpy.float32(Y))
-        cuda.memcpy_htod(de_image, Y)
+        cuda.memcpy_htod(de_image, numpy.ascontiguousarray(Y))
         #timeit(timemap,tone_mapping.preprocess,de_image,gray,width,height)
         timeit(timemap,tone_mapping.gaussian_blur_and_enhance,gray,x_buf,width,height)
         timeit(timemap,tone_mapping.enhance_image,de_image,gray,width,height)
