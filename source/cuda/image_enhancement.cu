@@ -385,7 +385,6 @@ __global__ void enhance_image(
     float mask = ph_mask[y * width + x];
 
     float gray = (float) Y[y * width + x] / 255.0f;
-    //gray = to_gray(rgb);
     gray = local_contrast_enhancement(gray, mask, threshold_dark_tones, local_boost, detail_amp_global);
     gray = spatial_tonemapping(
         gray, mask, mid_tone_mapped, tonal_width_mapped, areas_dark_mapped,

@@ -188,7 +188,14 @@ class ToneMapping:
 
     def enhance_image(self, Y, U, V, d_ph_mask, width, height):
         tile = 16
-
+        print(self.threshold_dark_tones)
+        print(self.local_boost)
+        print(self.saturation_degree)
+        print(self.mid_tone_mapped)
+        print(self.tonal_width_mapped)
+        print(self.areas_dark_mapped)
+        print(self.areas_bright_mapped)
+        print(self.detail_amplification_global)
         enhance_image_kernel(
             Y,
             U,
