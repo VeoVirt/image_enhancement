@@ -105,7 +105,7 @@ namespace cg = cooperative_groups;
 //}
 
 extern "C"
-__global__ void convolutionRowsKernel(float* d_Dst, uint8_t d_Src, int imageW,
+__global__ void convolutionRowsKernel(float* d_Dst, uint8_t* d_Src, int imageW,
                                       int imageH, int pitch) {
   // Handle to thread block group
   cg::thread_block cta = cg::this_thread_block();
@@ -121,7 +121,9 @@ __global__ void convolutionRowsKernel(float* d_Dst, uint8_t d_Src, int imageW,
       threadIdx.x;
   const int baseY = blockIdx.y * ROWS_BLOCKDIM_Y + threadIdx.y;
 
+  uint8_t* d_Org = d_Src
   d_Dst += baseY * pitch + baseX;
+  d_Src += baseY * pitch + baseX;
 
 // Load main data
 #pragma unroll
