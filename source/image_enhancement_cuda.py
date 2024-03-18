@@ -26,11 +26,6 @@ from PIL import Image
 path = os.path.dirname(__file__)
 mod = cuda.module_from_file(os.path.join(path, "image_enhancement.cubin"))
 
-scale_kernel = mod.get_function("scale")
-photometric_mask_ud_kernel = mod.get_function("photometric_mask_ud")
-photometric_mask_du_kernel = mod.get_function("photometric_mask_du")
-photometric_mask_lr_kernel = mod.get_function("photometric_mask_lr")
-photometric_mask_rl_kernel = mod.get_function("photometric_mask_rl")
 enhance_image_kernel = mod.get_function("enhance_image")
 convolution_rows_kernel = mod.get_function("convolutionRowsKernel")
 convolution_columns_kernel = mod.get_function("convolutionColumnsKernel")
@@ -158,9 +153,9 @@ class ToneMapping:
         assert(height % row_blockdim_y == 0);
 
         column_blockdim_x = 8
-        column_blockdim_y = 8
-        column_result_steps = 2
-        column_halo_steps = 2
+        column_blockdim_y = 4
+        column_result_steps = 4
+        column_halo_steps = 4
         assert(column_blockdim_y * column_halo_steps >= kernel_radius);
         assert(width % column_blockdim_x == 0);
         assert(height % (column_result_steps * column_blockdim_y) == 0);
@@ -201,14 +196,14 @@ class ToneMapping:
             U,
             V,
             d_ph_mask,
-            self.threshold_dark_tones,
-            self.local_boost,
-            self.saturation_degree,
-            self.mid_tone_mapped,
-            self.tonal_width_mapped,
-            self.areas_dark_mapped,
-            self.areas_bright_mapped,
-            self.detail_amplification_global,
+            self.threshold_dark_tones, #0.39215687
+            self.local_boost, #0.2
+            self.saturation_degree, #1.2
+            self.mid_tone_mapped, #0.5
+            self.tonal_width_mapped, #0.08691406
+            self.areas_dark_mapped, #0.8
+            self.areas_bright_mapped, #0.8
+            self.detail_amplification_global, #1.0
             numpy.uint32(width),
             numpy.uint32(height),
             grid=(ceil(width / tile), ceil(height / tile), 1),

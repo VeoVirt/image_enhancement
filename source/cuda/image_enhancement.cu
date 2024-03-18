@@ -1,6 +1,6 @@
 #include <cstdint>
 #include <cuda_runtime.h>
-#include "image_enhancement.cu.h"
+#include "tone_mapping.cuh"
 #include <assert.h>
 //#include <helper_cuda.h>
 #include <cooperative_groups.h>
@@ -16,29 +16,96 @@ namespace cg = cooperative_groups;
 #define ROWS_HALO_STEPS 2
 
 #define COLUMNS_BLOCKDIM_X 8
-#define COLUMNS_BLOCKDIM_Y 8
-#define COLUMNS_RESULT_STEPS 2
-#define COLUMNS_HALO_STEPS 2
+#define COLUMNS_BLOCKDIM_Y 4
+#define COLUMNS_RESULT_STEPS 4
+#define COLUMNS_HALO_STEPS 4
 
-//__constant__ float c_Kernel[KERNEL_LENGTH]
+#define KERNEL_RADIUS 14
+#define KERNEL_LENGTH (2 * KERNEL_RADIUS + 1)
 
-__device__ float to_gray(float rgb[3]){
-    return rgb[0] * 0.2125f + rgb[1] * 0.7154f + rgb[2] * 0.0721f;
-}
+
+//extern "C"
+//__global__ void convolutionKernel(float* d_Dst, cudaSurfaceObject_t d_Src, int imageW,
+//                                      int imageH, int pitch) {
+//  // Handle to thread block group
+//  cg::thread_block cta = cg::this_thread_block();
+//  __shared__ uint8_t
+//      s_Data[ROWS_BLOCKDIM_Y * 2*ROWS_HALO_STEPS][(ROWS_RESULT_STEPS + 2 * ROWS_HALO_STEPS) *
+//                              ROWS_BLOCKDIM_X];
+//
+//  //__shared__ float c_Kernel[KERNEL_LENGTH];
+//
+//  // Offset to the left halo edge
+//  const int baseX =
+//      (blockIdx.x * ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X +
+//      threadIdx.x;
+//  const int baseY = blockIdx.y * ROWS_BLOCKDIM_Y + threadIdx.y;
+//
+//  d_Dst += baseY * pitch + baseX;
+//
+//
+//for (int j = 0; i < ROWS_HALO_STEPS; i++)
+//// Load main data
+//#pragma unroll
+//
+//  for (int i = 0; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++) {
+//    uint8_t elem;
+//    surf2Dread(&elem, d_Src, (baseX+i*ROWS_BLOCKDIM_X), baseY);
+//    s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] = elem;
+//        //d_Src[i * ROWS_BLOCKDIM_X];
+//  }
+//
+//// Load left halo
+//#pragma unroll
+//
+//  for (int i = 0; i < ROWS_HALO_STEPS; i++) {
+//    uint8_t elem_left;
+//    surf2Dread(&elem_left, d_Src, (baseX+i*ROWS_BLOCKDIM_X), baseY, cudaBoundaryModeClamp);
+//    //(baseX >= -i * ROWS_BLOCKDIM_X) ?
+//    //    surf2Dread(&elem_left, d_Src, (baseX+i*ROWS_BLOCKDIM_X), baseY) :
+//    //        surf2Dread(&elem_left, d_Src, 0, baseY);
+//    s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] = elem_left;
+//  }
+//
+//// Load right halo
+//#pragma unroll
+//
+//  for (int i = ROWS_HALO_STEPS + ROWS_RESULT_STEPS;
+//       i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS + ROWS_HALO_STEPS; i++) {
+//    uint8_t elem_right;
+//    surf2Dread(&elem_right, d_Src, (baseX+i*ROWS_BLOCKDIM_X), baseY, cudaBoundaryModeClamp);
+//    //(imageW - baseX > i * ROWS_BLOCKDIM_X) ?
+//    //    surf2Dread(&elem_right, d_Src, (baseX+i*ROWS_BLOCKDIM_X), baseY, cudaBoundaryModeClamp) :
+//    //        surf2Dread(&elem_right, d_Src, (pitch-1), baseY);
+//    s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] = elem_right;
+//  }
+//
+//  // Compute and store results
+//  cg::sync(cta);
+//  static const float c_Kernel[29] = { 0.00801895, 0.01056259, 0.013632, 0.01723796, 0.02135743, 0.0259268,
+//                            0.03083797, 0.03593846, 0.04103646, 0.04591105, 0.05032705, 0.05405333,
+//                            0.05688272, 0.05865096, 0.0592525 , 0.05865096, 0.05688272, 0.05405333,
+//                            0.05032705, 0.04591105, 0.04103646, 0.03593846, 0.03083797, 0.0259268,
+//                            0.02135743, 0.01723796, 0.013632, 0.01056259, 0.00801895 };
+//#pragma unroll
+//
+//  for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++) {
+//    float sum = 0;
+//
+//#pragma unroll
+//
+//    for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
+//      sum += c_Kernel[KERNEL_RADIUS - j] *
+//             ((float)(s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j]) / 255.0f);
+//    }
+//
+//    d_Dst[i * ROWS_BLOCKDIM_X] = sum;
+//    //surf2Dwrite(sum,d_Dst,(i * ROWS_BLOCKDIM_X + baseX)*sizeof(float),baseY);
+//  }
+//}
 
 extern "C"
-__global__ void scale(uint8_t* src, float* dst, uint32_t width, uint32_t height){
-    uint32_t x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint32_t y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if (width <= x || height <= y){
-        return;
-    }
-    dst[y * width + x] = ((float) src[y * width + x]) / 255.0f;
-}
-
-extern "C"
-__global__ void convolutionRowsKernel(float *d_Dst, uint8_t *d_Src, int imageW,
+__global__ void convolutionRowsKernel(float* d_Dst, uint8_t d_Src, int imageW,
                                       int imageH, int pitch) {
   // Handle to thread block group
   cg::thread_block cta = cg::this_thread_block();
@@ -54,8 +121,6 @@ __global__ void convolutionRowsKernel(float *d_Dst, uint8_t *d_Src, int imageW,
       threadIdx.x;
   const int baseY = blockIdx.y * ROWS_BLOCKDIM_Y + threadIdx.y;
 
-  const uint8_t * d_Org = d_Src;
-  d_Src += baseY * pitch + baseX;
   d_Dst += baseY * pitch + baseX;
 
 // Load main data
@@ -90,6 +155,9 @@ __global__ void convolutionRowsKernel(float *d_Dst, uint8_t *d_Src, int imageW,
                             0.05688272, 0.05865096, 0.0592525 , 0.05865096, 0.05688272, 0.05405333,
                             0.05032705, 0.04591105, 0.04103646, 0.03593846, 0.03083797, 0.0259268,
                             0.02135743, 0.01723796, 0.013632, 0.01056259, 0.00801895 };
+  //static const float c_Kernel[17] = { 0.03083797, 0.03593846, 0.04103646, 0.04591105, 0.05032705, 0.05405333,
+  //                          0.05688272, 0.05865096, 0.0592525 , 0.05865096, 0.05688272, 0.05405333,
+  //                          0.05032705, 0.04591105, 0.04103646, 0.03593846, 0.03083797 };
 #pragma unroll
 
   for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++) {
@@ -106,27 +174,12 @@ __global__ void convolutionRowsKernel(float *d_Dst, uint8_t *d_Src, int imageW,
   }
 }
 
-//extern "C" void convolutionRowsGPU(float *d_Dst, float *d_Src, int imageW,
-//                                   int imageH) {
-//  assert(ROWS_BLOCKDIM_X * ROWS_HALO_STEPS >= KERNEL_RADIUS);
-//  assert(imageW % (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X) == 0);
-//  assert(imageH % ROWS_BLOCKDIM_Y == 0);
-//
-//  dim3 blocks(imageW / (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X),
-//              imageH / ROWS_BLOCKDIM_Y);
-//  dim3 threads(ROWS_BLOCKDIM_X, ROWS_BLOCKDIM_Y);
-//
-//  convolutionRowsKernel<<<blocks, threads>>>(d_Dst, d_Src, imageW, imageH,
-//                                             imageW);
-//  getLastCudaError("convolutionRowsKernel() execution failed\n");
-//}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Column convolution filter
 ////////////////////////////////////////////////////////////////////////////////
 
 extern "C"
-__global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
+__global__ void convolutionColumnsKernel(float *d_Dst, float* d_Src, int imageW,
                                          int imageH, int pitch) {
   // Handle to thread block group
   cg::thread_block cta = cg::this_thread_block();
@@ -182,7 +235,9 @@ __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
                             0.05688272, 0.05865096, 0.0592525 , 0.05865096, 0.05688272, 0.05405333,
                             0.05032705, 0.04591105, 0.04103646, 0.03593846, 0.03083797, 0.0259268,
                             0.02135743, 0.01723796, 0.013632, 0.01056259, 0.00801895 };
-
+  //static const float c_Kernel[17] = { 0.03083797, 0.03593846, 0.04103646, 0.04591105, 0.05032705, 0.05405333,
+  //                          0.05688272, 0.05865096, 0.0592525 , 0.05865096, 0.05688272, 0.05405333,
+  //                          0.05032705, 0.04591105, 0.04103646, 0.03593846, 0.03083797 };
 #pragma unroll
   for (int i = COLUMNS_HALO_STEPS;
        i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++) {
@@ -195,81 +250,6 @@ __global__ void convolutionColumnsKernel(float *d_Dst, float *d_Src, int imageW,
 
     d_Dst[i * COLUMNS_BLOCKDIM_Y * pitch] = sum;
   }
-}
-
-//extern "C" void convolutionColumnsGPU(float *d_Dst, float *d_Src, int imageW,
-//                                      int imageH) {
-//  assert(COLUMNS_BLOCKDIM_Y * COLUMNS_HALO_STEPS >= KERNEL_RADIUS);
-//  assert(imageW % COLUMNS_BLOCKDIM_X == 0);
-//  assert(imageH % (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y) == 0);
-//
-//  dim3 blocks(imageW / COLUMNS_BLOCKDIM_X,
-//              imageH / (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y));
-//  dim3 threads(COLUMNS_BLOCKDIM_X, COLUMNS_BLOCKDIM_Y);
-//
-//  convolutionColumnsKernel<<<blocks, threads>>>(d_Dst, d_Src, imageW, imageH,
-//                                                imageW);
-//  getLastCudaError("convolutionColumnsKernel() execution failed\n");
-//}
-
-extern "C"
-__global__ void photometric_mask_ud(float* ph_mask, float* lut, uint32_t width, uint32_t height){
-    uint32_t j = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (width <= j){
-        return;
-    }
-
-    for (uint32_t i = 0; i < height - 2; ++i){
-        float diff = abs(ph_mask[i * width + j] - ph_mask[(i + 2) * width + j]);
-        float sigmoid = lut[(uint8_t)(diff * (LUT_RES - 1))];
-        ph_mask[(i + 1) * width + j] = ph_mask[(i + 1) * width + j] * sigmoid + ph_mask[i * width + j] * (1 - sigmoid);
-    }
-}
-
-extern "C"
-__global__ void photometric_mask_du(float* ph_mask, float* lut, uint32_t width, uint32_t height){
-    uint32_t j = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (width <= j){
-        return;
-    }
-
-    for (uint32_t i = height - 2; i > 1; --i){
-        float diff = abs(ph_mask[(i - 1) * width + j] - ph_mask[(i + 1) * width + j]);
-        float sigmoid = lut[(uint8_t)(diff * (LUT_RES - 1))];
-        ph_mask[i * width + j] = ph_mask[i * width + j] * sigmoid + ph_mask[(i + 1) * width + j] * (1 - sigmoid);
-    }
-}
-
-extern "C"
-__global__ void photometric_mask_lr(float* ph_mask, float* lut, uint32_t width, uint32_t height){
-    uint32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (height <= i){
-        return;
-    }
-
-    for (uint32_t j = 0; j < width - 2; ++j){
-        float diff = abs(ph_mask[i * width + j] - ph_mask[i * width + j + 2]);
-        float sigmoid = lut[(uint8_t)(diff * (LUT_RES - 1))];
-        ph_mask[i * width + j + 1] = ph_mask[i * width + j + 1] * sigmoid + ph_mask[i * width + j] * (1 - sigmoid);
-    }
-}
-
-extern "C"
-__global__ void photometric_mask_rl(float* ph_mask, float* lut, uint32_t width, uint32_t height){
-    uint32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (height <= i){
-        return;
-    }
-
-    for (uint32_t j = width - 2; j > 1; --j){
-        float diff = abs(ph_mask[i * width + j - 1] - ph_mask[i * width + j + 1]);
-        float sigmoid = lut[(uint8_t)(diff * (LUT_RES - 1))];
-        ph_mask[i * width + j] = ph_mask[i * width + j] * sigmoid + ph_mask[i * width + j + 1] * (1 - sigmoid);
-    }
 }
 
 __device__ float local_contrast_enhancement(
@@ -309,59 +289,6 @@ __device__ float spatial_tonemapping(
     return lower + upper;
 }
 
-__device__ float srgb_to_linear(float value){
-    float lower = value * (value <= 0.04045f) / 12.92f;
-    float upper = powf((value + 0.055f) * (value > 0.04045f) / 1.055f, 2.4f);
-
-    return lower + upper;
-}
-
-__device__ float linear_to_srgb(float value){
-    float lower = value * (value <= 0.0031308f) * 12.92f;
-    float upper = powf(value * (value > 0.0031308f), 1.0f / 2.4f) * 1.055f - 0.055f;
-
-    return max(0.0f, min(1.0f, lower + upper));
-}
-
-__device__ void graytone_to_color(float rgb[3], float gray){
-    rgb[0] = srgb_to_linear(rgb[0]);
-    rgb[1] = srgb_to_linear(rgb[1]);
-    rgb[2] = srgb_to_linear(rgb[2]);
-
-    float graytone_linear = srgb_to_linear(gray);
-
-    float gray_linear = to_gray(rgb);
-    if (gray_linear <= 0.0f){
-        gray_linear = EPSILON;
-    }
-
-    float tone_ratio = graytone_linear / gray_linear;
-
-    rgb[0] = max(0.0f, min(1.0f, rgb[0] * tone_ratio));
-    rgb[1] = max(0.0f, min(1.0f, rgb[1] * tone_ratio));
-    rgb[2] = max(0.0f, min(1.0f, rgb[2] * tone_ratio));
-
-    rgb[0] = linear_to_srgb(rgb[0]);
-    rgb[1] = linear_to_srgb(rgb[1]);
-    rgb[2] = linear_to_srgb(rgb[2]);
-}
-
-__device__ void change_color_saturation(
-    float rgb[3], float mask, float threshold_dark_tones, float local_boost, float saturation_degree
-){
-    float gray = (rgb[0] + rgb[1] + rgb[2]) / 3.0f;
-
-    rgb[0] = rgb[0] - gray;
-    rgb[1] = rgb[1] - gray;
-    rgb[2] = rgb[2] - gray;
-
-    float detail_amplification_local = ((1 - min(1.0f, mask / threshold_dark_tones)) * local_boost) + 1;
-
-    rgb[0] = max(0.0f, min(1.0f, gray + rgb[0] * saturation_degree * detail_amplification_local));
-    rgb[1] = max(0.0f, min(1.0f, gray + rgb[1] * saturation_degree * detail_amplification_local));
-    rgb[2] = max(0.0f, min(1.0f, gray + rgb[2] * saturation_degree * detail_amplification_local));
-}
-
 __device__ float change_color_saturation_uv(
     float value, float mask, float threshold_dark_tones, float local_boost, float saturation_degree
 ){
@@ -372,7 +299,7 @@ __device__ float change_color_saturation_uv(
 // play with bindings/datatypes/reuse/operators..
 extern "C"
 __global__ void enhance_image(
-    uint8_t* Y, uint8_t* U, uint8_t* V, float* ph_mask, float threshold_dark_tones, float local_boost, float saturation_degree,
+    uint8_t* Y, float* ph_mask, float threshold_dark_tones, float local_boost, float saturation_degree,
     float mid_tone_mapped, float tonal_width_mapped, float areas_dark_mapped, float areas_bright_mapped, float detail_amp_global, uint32_t width, uint32_t height
 ){
     uint32_t x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -384,18 +311,23 @@ __global__ void enhance_image(
 
     float mask = ph_mask[y * width + x];
 
-    float gray = (float) Y[y * width + x] / 255.0f;
+    uint8_t gray_raw = Y[y * width + x];
+    
+    //surf2Dread(&gray_raw,Y,x,y);
+    float gray = (float) gray_raw / 255.0f;
     gray = local_contrast_enhancement(gray, mask, threshold_dark_tones, local_boost, detail_amp_global);
     gray = spatial_tonemapping(
         gray, mask, mid_tone_mapped, tonal_width_mapped, areas_dark_mapped,
         areas_bright_mapped
     );
+    gray_raw = (uint8_t) (max(0.0f, min(255.0f, gray*255.0)));
+    Y[y * width + x] = gray_raw;
+    //surf2Dwrite(gray_raw, Y, x, y);
+    
 
-    Y[y*width + x] = (uint8_t) max(0.0f, min(255.0f, gray*255.0));
-
-    float u = 2*(((float) U[y * width + x]) / 255.0f) - 1;
-    float v = 2*(((float) V[y * width + x]) / 255.0f) - 1;
+    //float u = 2*(((float) U[y * width + x]) / 255.0f) - 1;
+    //float v = 2*(((float) V[y * width + x]) / 255.0f) - 1;
     // hmmm color is a bit dull, and running time is 0.35028000056743624 compared to 0.20
-    U[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(u, mask, threshold_dark_tones, local_boost, saturation_degree)+1)/2 * 255.0f));
-    V[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(v, mask, threshold_dark_tones, local_boost, saturation_degree)+1)/2 * 255.0f));
+    //U[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(u, mask, threshold_dark_tones, local_boost, saturation_degree)+1)/2 * 255.0f));
+    //V[y*width + x] = (uint8_t) max(0.0f, min(255.0f, (change_color_saturation_uv(v, mask, threshold_dark_tones, local_boost, saturation_degree)+1)/2 * 255.0f));
 }
