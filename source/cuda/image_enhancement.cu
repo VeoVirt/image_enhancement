@@ -1,6 +1,6 @@
 #include <cstdint>
 #include <cuda_runtime.h>
-#include "tone_mapping.cuh"
+#include "image_enhancement.cu.h"
 #include <assert.h>
 //#include <helper_cuda.h>
 #include <cooperative_groups.h>
