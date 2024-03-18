@@ -121,7 +121,7 @@ __global__ void convolutionRowsKernel(float* d_Dst, uint8_t* d_Src, int imageW,
       threadIdx.x;
   const int baseY = blockIdx.y * ROWS_BLOCKDIM_Y + threadIdx.y;
 
-  uint8_t* d_Org = d_Src
+  uint8_t* d_Org = d_Src;
   d_Dst += baseY * pitch + baseX;
   d_Src += baseY * pitch + baseX;
 
